@@ -6,16 +6,18 @@ import (
 	"strings"
 )
 
-type DHT struct {
+type SHT struct {
 	SensorParser
 }
 
 func init() {
-	RegisterSensor("DHT", new(DHT))
+	var s SHT
+	RegisterSensor("SHT", &s)
+	RegisterSensor("DHT", &s)
 }
 
-func (d *DHT) Parse(data string) {
-	fmt.Print("DHT Sensor - ")
+func (d *SHT) Parse(data string) {
+	fmt.Print("SHT Sensor - ")
 	str := strings.Split(data, ",")
 	temp, _ := strconv.ParseInt(str[0], 16, 16)
 	hum, _ := strconv.ParseInt(str[1], 16, 16)
