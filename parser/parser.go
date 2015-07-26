@@ -12,7 +12,7 @@ import (
 var sensors map[string]SensorParser
 
 type SensorParser interface {
-	Parse(data string)
+	Parse(key string, data string)
 }
 
 type Parser struct {
@@ -32,7 +32,7 @@ func (p *Parser) Loop(reader io.Reader) {
 		if nil == sensors[line[0]] {
 			fmt.Println(scanner.Text())
 		} else {
-			sensors[line[0]].Parse(line[1])
+			sensors[line[0]].Parse(line[0], line[1])
 		}
 	}
 }

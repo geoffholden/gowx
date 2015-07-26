@@ -16,8 +16,8 @@ func init() {
 	RegisterSensor("DHT", &s)
 }
 
-func (d *SHT) Parse(data string) {
-	fmt.Print("SHT Sensor - ")
+func (d *SHT) Parse(key string, data string) {
+	fmt.Printf("%s Sensor - ", key)
 	str := strings.Split(data, ",")
 	temp, _ := strconv.ParseInt(str[0], 16, 16)
 	hum, _ := strconv.ParseInt(str[1], 16, 16)

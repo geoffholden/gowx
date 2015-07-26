@@ -13,7 +13,7 @@ func init() {
 	RegisterSensor("OS2", &o)
 }
 
-func (d *Oregon) Parse(data string) {
+func (d *Oregon) Parse(key string, data string) {
 	fmt.Println("Sensor ID", data[0:4], "Channel", data[4:5], "Rolling Code", data[5:7], "Flags", data[7:8])
 	switch data[0:4] {
 	case "1D20", "F824", "F8B4":
