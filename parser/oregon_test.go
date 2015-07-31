@@ -1,12 +1,27 @@
-package parser
+package main
 
-func ExampleParseTHGR122NX() {
+import (
+	"testing"
+)
+
+func TestParseTHGR122NX(t *testing.T) {
 	var o Oregon
-	o.Parse("OS3", "1D20485C480882835")
-	o.Parse("OS3", "1D2016B1091073A14")
-	// Output:
-	// Sensor ID 1D20 Channel 4 Rolling Code 85 Flags C
-	// Temperature -8.4 Humidity 28
-	// Sensor ID 1D20 Channel 1 Rolling Code 6B Flags 1
-	// Temperature 19 Humidity 37
+	res := o.Parse("OS3", "1D20485C480882835")
+	if res.ID != "1D20" {
+		t.Error("Error parsing ID")
+	}
+	if res.Data["Temperature"] != -8.4 {
+		t.Error("Error parsing temperature")
+	}
+	if res.Data["Humidity"] != 28 {
+		t.Error("Error parsing humidity")
+	}
+
+	res = o.Parse("OS3", "1D2016B1091073A14")
+	if res.Data["Temperature"] != 19 {
+		t.Error("Error parsing temperature")
+	}
+	if res.Data["Humidity"] != 37 {
+		t.Error("Error parsing humidity")
+	}
 }
