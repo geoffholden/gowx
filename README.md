@@ -1,6 +1,8 @@
 # gowx
 Go Weather Station Interface
 
+[![Build Status](https://travis-ci.org/geoffholden/gowx.svg?branch=master)](https://travis-ci.org/geoffholden/gowx)
+
 A first attempt at a data logger and web interface for weather station data.
 
 The current goal is to be able to parse the serial data from the
