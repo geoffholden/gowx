@@ -7,7 +7,7 @@ import (
 func TestParseTHGR122NX(t *testing.T) {
 	var o Oregon
 	res := o.Parse("OS3", "1D20485C480882835")
-	if res.ID != "1D20" {
+	if res.ID != "OS3:1D20" {
 		t.Error("Error parsing ID")
 	}
 	if res.Data["Temperature"] != -8.4 {
