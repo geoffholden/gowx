@@ -68,6 +68,7 @@ func (p *Parser) serialLoop(client *MQTT.Client) {
 		panic(err)
 	}
 	defer s.Close()
+	s.Flush()
 	p.loop(s, client)
 }
 
