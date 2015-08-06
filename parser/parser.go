@@ -37,7 +37,7 @@ func (p *Parser) loop(reader io.Reader, client *MQTT.Client) {
 			if nil == sensors[line[0]] {
 				fmt.Println(scanner.Text())
 			} else {
-				d := sensors[line[0]].Parse(line[0], line[1])
+				d := sensors[line[0]].Parse(line[0], line[1], &p.config)
 				channel <- d
 			}
 		}

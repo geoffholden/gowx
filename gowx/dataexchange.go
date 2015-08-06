@@ -11,5 +11,5 @@ type SensorData struct {
 }
 
 type SensorParser interface {
-	Parse(key string, data string) SensorData
+	Parse(key string, data string, config *Config) SensorData
 }

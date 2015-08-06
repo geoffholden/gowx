@@ -14,7 +14,7 @@ func init() {
 	RegisterSensor("OS2", &o)
 }
 
-func (d *Oregon) Parse(key string, data string) gowx.SensorData {
+func (d *Oregon) Parse(key string, data string, config *gowx.Config) gowx.SensorData {
 	//fmt.Println("Sensor ID", data[0:4], "Channel", data[4:5], "Rolling Code", data[5:7], "Flags", data[7:8])
 	channel, err := strconv.ParseUint(data[4:5], 16, 8)
 	if err != nil {

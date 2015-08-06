@@ -56,7 +56,7 @@ func parseSignedShort(s string) int16 {
 	return result
 }
 
-func (b *BMP) Parse(key string, data string) gowx.SensorData {
+func (b *BMP) Parse(key string, data string, config *gowx.Config) gowx.SensorData {
 	switch key {
 	case "BM0", "BM1", "BM2", "BM6", "BM7", "BM8", "BM9":
 		val := parseSignedShort(data)
@@ -101,6 +101,9 @@ func (b *BMP) Parse(key string, data string) gowx.SensorData {
 		y := (b.y2*s+b.y1)*s + b.y0
 		z := (float64(p) - x) / y
 		bmpPressure := (b.p2*z+b.p1)*z + b.p0
+
+		elevationAdj := float64(config.Parser.Elevation) * 12.0 / 100.0 // 12 hPa/100m
+		bmpPressure += elevationAdj
 
 		var result gowx.SensorData
 		result.TimeStamp = time.Now()

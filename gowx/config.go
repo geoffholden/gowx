@@ -15,6 +15,7 @@ type Config struct {
 	Parser struct {
 		SerialPort string
 		SerialBaud int
+		Elevation  int
 	}
 
 	Aggregator struct {
