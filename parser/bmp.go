@@ -58,7 +58,7 @@ func parseSignedShort(s string) int16 {
 
 func (b *BMP) Parse(key string, data string) gowx.SensorData {
 	switch key {
-	case "BM0", "BM1", "BM2", "BM7", "BM8", "BM9":
+	case "BM0", "BM1", "BM2", "BM6", "BM7", "BM8", "BM9":
 		val := parseSignedShort(data)
 		b.cal[key[2]-'0'] = int32(val)
 	case "BM3", "BM4", "BM5":
