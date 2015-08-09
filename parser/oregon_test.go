@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/geoffholden/gowx/gowx"
+	"reflect"
 	"testing"
 )
 
@@ -25,5 +26,33 @@ func TestParseTHGR122NX(t *testing.T) {
 	}
 	if res.Data["Humidity"] != 37 {
 		t.Error("Error parsing humidity")
+	}
+}
+
+func TestTruncated(t *testing.T) {
+	var o Oregon
+	var c gowx.Config
+
+	var empty gowx.SensorData
+
+	res := o.Parse("OS3", "1D20485C48088283", &c)
+	if !reflect.DeepEqual(res, empty) {
+		t.Error("SensorResult should be empty")
+	}
+
+	res = o.Parse("OS3", "1D20485C480", &c)
+	if !reflect.DeepEqual(res, empty) {
+		t.Error("SensorResult should be empty")
+	}
+}
+
+func TestBadChecksum(t *testing.T) {
+	var o Oregon
+	var c gowx.Config
+	var empty gowx.SensorData
+
+	res := o.Parse("OS3", "1D20485C480882845", &c)
+	if !reflect.DeepEqual(res, empty) {
+		t.Error("SensorResult should be empty")
 	}
 }
