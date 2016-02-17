@@ -106,7 +106,7 @@ func (b *BMP) Parse(key string, data string, config *gowx.Config) gowx.SensorDat
 		bmpPressure += elevationAdj
 
 		var result gowx.SensorData
-		result.TimeStamp = time.Now()
+		result.TimeStamp = time.Now().UTC()
 		result.ID = "BMP"
 		result.Channel = 0
 		result.Serial = "0"
