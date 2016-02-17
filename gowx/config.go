@@ -9,7 +9,9 @@ var configFile string
 
 type Config struct {
 	Global struct {
-		MQTTServer string
+		MQTTServer     string
+		DatabaseDriver string
+		Database       string
 	}
 
 	Parser struct {
@@ -21,13 +23,22 @@ type Config struct {
 	Aggregator struct {
 		AverageInterval int
 	}
+
+	Web struct {
+		Root string
+	}
 }
 
 func NewConfig() *Config {
 	var c Config
 	c.Global.MQTTServer = "tcp://localhost:1883"
 
+	c.Global.DatabaseDriver = "sqlite3"
+	c.Global.Database = "gowx.db"
+
 	c.Aggregator.AverageInterval = 300
+
+	c.Web.Root = "./webroot"
 
 	return &c
 }
