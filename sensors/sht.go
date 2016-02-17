@@ -1,14 +1,14 @@
-package main
+package sensors
 
 import (
-	"github.com/geoffholden/gowx/gowx"
+	"github.com/geoffholden/gowx/data"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type SHT struct {
-	gowx.SensorParser
+	data.SensorParser
 }
 
 func init() {
@@ -17,12 +17,12 @@ func init() {
 	RegisterSensor("DHT", &s)
 }
 
-func (d *SHT) Parse(key string, data string, config *gowx.Config) gowx.SensorData {
-	str := strings.Split(data, ",")
+func (d *SHT) Parse(key string, input string) data.SensorData {
+	str := strings.Split(input, ",")
 	temp, _ := strconv.ParseInt(str[0], 16, 16)
 	hum, _ := strconv.ParseInt(str[1], 16, 16)
 
-	var result gowx.SensorData
+	var result data.SensorData
 	result.TimeStamp = time.Now().UTC()
 	result.ID = key
 	result.Channel = 0

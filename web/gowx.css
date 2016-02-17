@@ -1,0 +1,85 @@
+@import url('/reset.css');
+
+body {
+    font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, sans-serif;
+    margin: 1em;
+}
+
+div.current {
+    border: 3px double #7cb5ec;
+    display: inline-block;
+    font-size: 125%;
+}
+
+div.current > div {
+    padding: 4px;
+    float: left;
+    margin: 0.5em;
+}
+
+div.current .reading {
+    text-align: right;
+    float: right;
+    margin-left: 1.5em;
+}
+
+#current_wind_angle {
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 5px;
+    font-size:1.5em;
+    text-align: center;
+    width: 1.5em;
+    height: 1.5em;
+    float: right;
+    line-height: 1.5em;
+}
+
+#current_wind_angle span {
+    display: inline-block;
+    vertical-align: middle;
+    height: 100%;
+    width: 100%;
+    -webkit-text-stroke: 2px black;
+    color: #7cb5ec;
+}
+
+br.clear {
+    clear: both;
+    height: 0;
+}
+
+div.plot {
+    height: 250px;
+    display: inline-block;
+    min-width: 300px;
+}
+
+div.plot.third {
+    width: 33%;
+}
+
+div.plot.half {
+    width: 49.5%;
+}
+
+@media screen and (max-width: 1075px) and (min-width: 701px) {
+    div.plot.third {
+        width: 49.5%;
+    }
+}
+
+@media screen and (max-width: 700px) {
+    div.plot.third,div.plot.half {
+        width: 100%;
+    }
+
+    div.current {
+        width: 100%;
+    }
+
+    div.current > div + div {
+        float: left;
+    }
+}
+

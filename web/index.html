@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta name="generator" content="HTML Tidy for Linux (vers 25 March 2009), see www.w3.org" />
+
+  <title>gowx weather data</title>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.8.2/jquery.min.js" type="text/javascript"></script>
+  <script src="http://code.highcharts.com/highcharts.js" type="text/javascript"></script>
+  <script src="http://code.highcharts.com/highcharts-more.js" type="text/javascript"></script>
+  <script src="/gowx.js" type="text/javascript"></script>
+  <link rel="stylesheet" type="text/css" href="/gowx.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+
+<body>
+<div class="current">
+    <div>
+        <div>
+            Temperature: <span class="reading"><span id="current_temp"></span>&deg;C</span>
+        </div>
+
+        <div>
+            Humidity: <span class="reading"><span id="current_humidity"></span>%</span>
+        </div>
+
+        <div>
+            Pressure: <span class="reading"><span id="current_pressure"></span>hPa</span>
+        </div>
+
+        <div>
+            Tendency: <span class="reading"><span id="pressure_tendency"></span></span>
+        </div>
+    </div>
+
+    <div>
+        <div>
+            Rainfall Rate: <span class="reading"><span id="current_rain"></span>mm/h</span>
+        </div>
+        <div>
+            24h Rainfall: <span class="reading"><span id="rain_total"></span>mm</span>
+        </div>
+        <div>
+            Wind: <span class="reading"><span id="current_wind"></span>m/s</span>
+        </div>
+
+        <div>
+            Direction: <span class="reading"><span id="current_wind_dir"></span></span>
+        </div>
+
+        <div id="current_wind_angle"><span>&#10148;</span></div>
+    </div>
+    
+    <br class="clear" />
+</div>
+
+<div class="plots">
+    <div id="temp" class="plot third"></div>
+
+    <div id="humidity" class="plot third"></div>
+
+    <div id="pressure" class="plot third"></div>
+
+    <div id="wind" class="plot half"></div>
+
+    <div id="winddir" class="plot half"></div>
+
+    <div id="rain" class="plot half"></div>
+</div>
+<script type="text/javascript">
+//<![CDATA[
+  <!--
+  var timeframe;
+  $(document).ready(function() {
+    timeframe = getQueryVariable("time");
+    if (!timeframe) {
+        timeframe = "24h";
+    }
+    var showRange = true;
+    if (timeframe == "24h" || timeframe == "1d" || timeframe == "3h") {
+        showRange = false;
+    }
+    Highcharts.setOptions({
+        title: {
+            style: {
+                fontSize: '12px',
+            }
+        },
+        credits: {
+            enabled: false,
+        },
+    });
+    makeChart("/data.json?type=Pressure&time=" + timeframe, pressure, "Pressure", "hPa", showRange);
+    makeChart("/data.json?type=Temperature&id=OS3:F824,DHT,BMP&time=" + timeframe, temp, ["Temperature", "Outside", "Inside (DHT)", "Inside (BMP)"], "\u00B0C", showRange);
+    makeChart("/data.json?type=Humidity&id=OS3:F824,DHT&time=" + timeframe, humidity, ["Humidity", "Outside", "Inside"], "%", showRange);
+    makeChart("/data.json?type=AverageWind[avg],CurrentWind[max]&time=" + timeframe, 'wind', ["Wind Speed", "Average Wind", "Gusts"], "m/s", false, showRange);
+
+    $.getJSON("/data.json?type=RainRate,RainTotal&time=" + timeframe, function(data) {
+        initialrain = data.Data[1][0][1];
+        for (i = 0; i < data.Data[1].length; i++) {
+            data.Data[1][i][1] -= initialrain;
+        }
+
+        var options = {
+            chart: {
+                zoomType: 'x',
+                renderTo: 'rain',
+            },
+            title: {
+                text: "Rainfall",
+            },
+            xAxis: {
+                type: 'datetime',
+            },
+            yAxis: [{
+                title: {
+                    text: 'Rainfall Rate (mm/h)',
+                },
+                minRange: 1,
+                min: 0,
+            },
+            {
+                title: {
+                    text: 'Total Rain (mm)'
+                },
+                opposite: true,
+                minRange: 1,
+                min: 0,
+            }],
+            tooltip: {
+                valueDecimals: 1,
+            },
+            legend: {
+                enabled: true,
+            },
+            series: [{
+                    type: 'spline',
+                    data: data.Data[0],
+                    name: 'Rainfall Rate',
+                    tooltip: {
+                        valueSuffix: " mm/h"
+                    },
+                },
+                {
+                    type: 'spline',
+                    data: data.Data[1],
+                    name: 'Total Rain',
+                    yAxis: 1,
+                    tooltip: {
+                        valueSuffix: " mm"
+                    },
+                }],
+        };
+
+        var chart = new Highcharts.Chart(options);
+
+        setInterval(function() {
+            $.getJSON("/data.json?type=RainRate,RainTotal&time=" + timeframe, function(data) {
+                initialrain = data.Data[1][0][1];
+                for (i = 0; i < data.Data[1].length; i++) {
+                    data.Data[1][i][1] -= initialrain;
+                }
+                chart.series[0].setData(data.Data[0]);
+                chart.series[1].setData(data.Data[1]);
+            });
+        },300000);
+    });
+
+    $.getJSON("/wind.json?time=" + timeframe, function(data) {
+        var options = {
+            chart: {
+                renderTo: 'winddir',
+                polar: true,
+                marginRight: 0,
+            },
+            title: {
+                text: 'Wind Direction',
+            },
+            pane: {
+                startAngle:0,
+                endAngle: 360,
+            },
+            xAxis: {
+                tickInterval: 45,
+                labels: {
+                    formatter: function() {
+                        return degreesToCardinal(this.value);
+                    }
+                },
+            },
+            yAxis: {
+               min: 0,
+            },
+            legend: {
+                align: 'right',
+                layout: 'vertical',
+                verticalAlign: 'bottom',
+            },
+            tooltip: {
+                valueDecimals: 1,
+            },
+            plotOptions: {
+                series: {
+                    pointStart: 0,
+                    pointInterval: 11.25,
+                    marker: {
+                        enabled: false,
+                    },
+                },
+            },
+            series: [
+                {
+                    type: 'area',
+                    data: data.Wind,
+                    name: 'Average',
+                    zIndex: 1,
+                },
+                {
+                    type: 'area',
+                    data: data.Gust,
+                    fillOpacity: 0.3,
+                    zIndex: 0,
+                    name: 'Gust',
+                },
+            ],
+            tooltip: {
+                valueDecimals: 1,
+                valueSuffix: " m/s",
+            },
+        };
+        var chart = new Highcharts.Chart(options);
+        setInterval(function() {
+            $.getJSON("/wind.json?time=" + timeframe, function(data) {
+                chart.series[0].setData(data.Wind);
+                chart.series[1].setData(data.Gust);
+            });
+        },300000);
+    });
+  });
+  // -->
+  //]]>
+</script>
+</body>
+</html>

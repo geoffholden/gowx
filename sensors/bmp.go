@@ -1,7 +1,8 @@
-package main
+package sensors
 
 import (
-	"github.com/geoffholden/gowx/gowx"
+	"github.com/geoffholden/gowx/data"
+	"github.com/spf13/viper"
 	"math"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 )
 
 type BMP struct {
-	gowx.SensorParser
+	data.SensorParser
 
 	ossMode  int32
 	avgCount int32
@@ -56,37 +57,37 @@ func parseSignedShort(s string) int16 {
 	return result
 }
 
-func (b *BMP) Parse(key string, data string, config *gowx.Config) gowx.SensorData {
+func (b *BMP) Parse(key string, input string) data.SensorData {
 	switch key {
 	case "BM0", "BM1", "BM2", "BM6", "BM7", "BM8", "BM9":
-		val := parseSignedShort(data)
+		val := parseSignedShort(input)
 		b.cal[key[2]-'0'] = int32(val)
 	case "BM3", "BM4", "BM5":
-		val, err := strconv.ParseUint(data, 16, 16)
+		val, err := strconv.ParseUint(input, 16, 16)
 		if err != nil {
 			panic(err)
 		}
 		b.cal[key[2]-'0'] = int32(val)
 	case "BMA":
-		b.cal[10] = int32(parseSignedShort(data))
+		b.cal[10] = int32(parseSignedShort(input))
 		b.updateCal()
 	case "BMV":
-		val, err := strconv.ParseInt(data, 16, 16)
+		val, err := strconv.ParseInt(input, 16, 16)
 		if err != nil {
 			panic(err)
 		}
 		b.avgCount = int32(val)
 	case "BMO":
-		val, err := strconv.ParseInt(data, 16, 16)
+		val, err := strconv.ParseInt(input, 16, 16)
 		if err != nil {
 			panic(err)
 		}
 		b.ossMode = int32(val)
 	case "BMX":
 		if !b.calibrated {
-			return gowx.SensorData{}
+			return data.SensorData{}
 		}
-		str := strings.Split(data, ",")
+		str := strings.Split(input, ",")
 		temp, _ := strconv.ParseUint(str[0], 16, 32)
 		pres, _ := strconv.ParseUint(str[1], 16, 32)
 
@@ -102,10 +103,10 @@ func (b *BMP) Parse(key string, data string, config *gowx.Config) gowx.SensorDat
 		z := (float64(p) - x) / y
 		bmpPressure := (b.p2*z+b.p1)*z + b.p0
 
-		elevationAdj := float64(config.Parser.Elevation) * 12.0 / 100.0 // 12 hPa/100m
+		elevationAdj := float64(viper.GetInt("elevation")) * 12.0 / 100.0 // 12 hPa/100m
 		bmpPressure += elevationAdj
 
-		var result gowx.SensorData
+		var result data.SensorData
 		result.TimeStamp = time.Now().UTC()
 		result.ID = "BMP"
 		result.Channel = 0
@@ -115,7 +116,7 @@ func (b *BMP) Parse(key string, data string, config *gowx.Config) gowx.SensorDat
 		result.Data["Pressure"] = float64(bmpPressure)
 		return result
 	}
-	return gowx.SensorData{}
+	return data.SensorData{}
 }
 
 func (b *BMP) updateCal() {

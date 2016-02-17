@@ -1,19 +1,51 @@
-package main
+// Copyright © 2016 Geoff Holden (geoff@geoffholden.com)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cmd
 
 import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"math"
 	"regexp"
 	"time"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
-	"github.com/geoffholden/gowx/gowx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "github.com/mattn/go-sqlite3" // Load SQLite DB driver
+
+	"github.com/geoffholden/gowx/data"
 )
+
+// aggregatorCmd represents the aggregator command
+var aggregatorCmd = &cobra.Command{
+	Use:   "aggregator",
+	Short: "Aggregates individual samples",
+	Long:  `Aggregates individual samples and stores the result into the database.`,
+	Run:   aggregator,
+}
+
+func init() {
+	RootCmd.AddCommand(aggregatorCmd)
+
+	aggregatorCmd.Flags().Int("interval", 300, "Interval (in seconds) to aggregate data.")
+	viper.BindPFlags(aggregatorCmd.Flags())
+}
 
 type mapKey struct {
 	ID      string
@@ -22,22 +54,13 @@ type mapKey struct {
 	Key     string
 }
 
-type Aggregator struct {
-	config gowx.Config
-	data   map[mapKey][]float64
-	db     *sql.DB
-}
+func aggregator(cmd *cobra.Command, args []string) {
+	fmt.Println("aggregator called")
 
-func main() {
-	flag.Parse()
-	var aggregator Aggregator
-	aggregator.config = gowx.NewConfig().LoadFile()
-
-	db, err := sql.Open("sqlite3", "./data.db")
+	db, err := sql.Open(viper.GetString("dbDriver"), viper.GetString("database"))
 	if err != nil {
 		panic(err)
 	}
-	aggregator.db = db
 	_, err = db.Exec(`
 	CREATE TABLE IF NOT EXISTS samples (
 		timestamp   integer,
@@ -53,16 +76,16 @@ func main() {
 		panic(err)
 	}
 
-	dataChannel := make(chan gowx.SensorData)
+	dataChannel := make(chan data.SensorData)
 
 	topic := "/gowx/sample"
-	opts := MQTT.NewClientOptions().AddBroker(aggregator.config.Global.MQTTServer).SetClientID("aggregator").SetCleanSession(true)
+	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("aggregator").SetCleanSession(true)
 
 	opts.OnConnect = func(c *MQTT.Client) {
 		if token := c.Subscribe(topic, 0, func(client *MQTT.Client, msg MQTT.Message) {
 			r := bytes.NewReader(msg.Payload())
 			decoder := json.NewDecoder(r)
-			var data gowx.SensorData
+			var data data.SensorData
 			err := decoder.Decode(&data)
 			if err != nil {
 				panic(err)
@@ -79,34 +102,34 @@ func main() {
 	}
 	defer client.Disconnect(0)
 
-	ticker := time.NewTicker(time.Duration(aggregator.config.Aggregator.AverageInterval) * time.Second)
+	ticker := time.NewTicker(time.Duration(viper.GetInt("interval")) * time.Second)
 
-	aggregator.data = make(map[mapKey][]float64)
+	data := make(map[mapKey][]float64)
 	for {
 		select {
 		case <-ticker.C:
-			aggregator.sumData()
+			sumData(&data, db)
 		case d := <-dataChannel:
-			aggregator.addData(d)
+			addData(&data, d)
 		}
 	}
 }
 
-func (a *Aggregator) addData(data gowx.SensorData) {
+func addData(data *map[mapKey][]float64, d data.SensorData) {
 	fmt.Printf("Adding data:\n")
-	for k, v := range data.Data {
+	for k, v := range d.Data {
 		fmt.Printf("\t\t%s -> %f\n", k, v)
 		key := mapKey{
-			ID:      data.ID,
-			Channel: data.Channel,
-			Serial:  data.Serial,
+			ID:      d.ID,
+			Channel: d.Channel,
+			Serial:  d.Serial,
 			Key:     k,
 		}
-		a.data[key] = append(a.data[key], v)
+		(*data)[key] = append((*data)[key], v)
 	}
 }
 
-func (a *Aggregator) sumData() {
+func sumData(data *map[mapKey][]float64, db *sql.DB) {
 	direction := regexp.MustCompile(`Dir$`)
 
 	stmt := `INSERT INTO samples (
@@ -120,7 +143,7 @@ func (a *Aggregator) sumData() {
 
 	timestamp := time.Now().UTC().Unix()
 
-	for key, slice := range a.data {
+	for key, slice := range *data {
 		var min, max, avg float64
 		switch {
 		case direction.MatchString(key.Key):
@@ -132,12 +155,12 @@ func (a *Aggregator) sumData() {
 			max = maximum(slice)
 			avg = mean(slice)
 		}
-		_, err := a.db.Exec(stmt, timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
+		_, err := db.Exec(stmt, timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
 		if err != nil {
-			fmt.Errorf("%s\n", err.Error())
+			fmt.Printf("%s\n", err.Error())
 		}
 	}
-	a.data = make(map[mapKey][]float64)
+	*data = make(map[mapKey][]float64)
 }
 
 func minimum(d []float64) float64 {

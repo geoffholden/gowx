@@ -1,15 +1,14 @@
-package main
+package sensors
 
 import (
-	"github.com/geoffholden/gowx/gowx"
+	"github.com/geoffholden/gowx/data"
 	"reflect"
 	"testing"
 )
 
 func TestParseTHGR122NX(t *testing.T) {
 	var o Oregon
-	var c gowx.Config
-	res := o.Parse("OS3", "1D20485C480882835", &c)
+	res := o.Parse("OS3", "1D20485C480882835")
 	if res.ID != "OS3:1D20" {
 		t.Error("Error parsing ID")
 	}
@@ -20,7 +19,7 @@ func TestParseTHGR122NX(t *testing.T) {
 		t.Error("Error parsing humidity")
 	}
 
-	res = o.Parse("OS3", "1D2016B1091073A14", &c)
+	res = o.Parse("OS3", "1D2016B1091073A14")
 	if res.Data["Temperature"] != 19 {
 		t.Error("Error parsing temperature")
 	}
@@ -31,16 +30,15 @@ func TestParseTHGR122NX(t *testing.T) {
 
 func TestTruncated(t *testing.T) {
 	var o Oregon
-	var c gowx.Config
 
-	var empty gowx.SensorData
+	var empty data.SensorData
 
-	res := o.Parse("OS3", "1D20485C48088283", &c)
+	res := o.Parse("OS3", "1D20485C48088283")
 	if !reflect.DeepEqual(res, empty) {
 		t.Error("SensorResult should be empty")
 	}
 
-	res = o.Parse("OS3", "1D20485C480", &c)
+	res = o.Parse("OS3", "1D20485C480")
 	if !reflect.DeepEqual(res, empty) {
 		t.Error("SensorResult should be empty")
 	}
@@ -48,10 +46,9 @@ func TestTruncated(t *testing.T) {
 
 func TestBadChecksum(t *testing.T) {
 	var o Oregon
-	var c gowx.Config
-	var empty gowx.SensorData
+	var empty data.SensorData
 
-	res := o.Parse("OS3", "1D20485C480882845", &c)
+	res := o.Parse("OS3", "1D20485C480882845")
 	if !reflect.DeepEqual(res, empty) {
 		t.Error("SensorResult should be empty")
 	}

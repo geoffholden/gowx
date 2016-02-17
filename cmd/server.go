@@ -1,11 +1,25 @@
-package main
+// Copyright © 2016 Geoff Holden (geoff@geoffholden.com)
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package cmd
 
 import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"flag"
-	"log"
+	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -13,33 +27,44 @@ import (
 	"time"
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
-
-	"github.com/geoffholden/gowx/gowx"
-	_ "github.com/mattn/go-sqlite3"
+	"github.com/geoffholden/gowx/data"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
-var currentData struct {
-	Temperature float64
-	Humidity    float64
-	Pressure    float64
-	Wind        float64
-	WindDir     float64
-	RainRate    float64
+// serverCmd represents the server command
+var serverCmd = &cobra.Command{
+	Use:     "server",
+	Aliases: []string{"web", "serve", "webserver"},
+	Short:   "Web Server",
+	Long:    `Launches the web server.`,
+	Run:     server,
 }
 
-var db *sql.DB
+func init() {
+	RootCmd.AddCommand(serverCmd)
 
-func main() {
-	flag.Parse()
+	serverCmd.Flags().String("webroot", "web", "Root directory for the web server.")
+	serverCmd.Flags().String("address", ":0", "Address and port to listen on.")
+	viper.BindPFlags(serverCmd.Flags())
+}
 
-	config := gowx.NewConfig().LoadFile()
+func server(cmd *cobra.Command, args []string) {
+	var currentData struct {
+		Temperature float64
+		Humidity    float64
+		Pressure    float64
+		Wind        float64
+		WindDir     float64
+		RainRate    float64
+	}
 
-	opts := MQTT.NewClientOptions().AddBroker(config.Global.MQTTServer).SetClientID("web").SetCleanSession(true)
+	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("web").SetCleanSession(true)
 	opts.OnConnect = func(c *MQTT.Client) {
 		if token := c.Subscribe("/gowx/sample", 0, func(client *MQTT.Client, msg MQTT.Message) {
 			r := bytes.NewReader(msg.Payload())
 			decoder := json.NewDecoder(r)
-			var data gowx.SensorData
+			var data data.SensorData
 			err := decoder.Decode(&data)
 			if err != nil {
 				panic(err)
@@ -68,24 +93,37 @@ func main() {
 	defer client.Disconnect(0)
 
 	var err error
-	db, err = sql.Open(config.Global.DatabaseDriver, config.Global.Database)
+	db, err := sql.Open(viper.GetString("dbDriver"), viper.GetString("database"))
 	if err != nil {
 		panic(err)
 	}
 
-	http.Handle("/", http.FileServer(http.Dir(config.Web.Root)))
+	http.Handle("/", http.FileServer(http.Dir(viper.GetString("webroot"))))
 
-	http.HandleFunc("/data.json", data)
+	http.HandleFunc("/data.json", func(w http.ResponseWriter, r *http.Request) {
+		dataHandler(w, r, db)
+	})
 
-	http.HandleFunc("/change.json", change)
+	http.HandleFunc("/change.json", func(w http.ResponseWriter, r *http.Request) {
+		changeHandler(w, r, db)
+	})
 
-	http.HandleFunc("/wind.json", wind)
+	http.HandleFunc("/wind.json", func(w http.ResponseWriter, r *http.Request) {
+		windHandler(w, r, db)
+	})
 
 	http.HandleFunc("/currentdata.json", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(currentData)
 	})
 
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	listener, err := net.Listen("tcp", viper.GetString("address"))
+	if err != nil {
+		panic(err)
+	}
+	addr := listener.Addr()
+	fmt.Println("Listening on", addr.String())
+
+	http.Serve(listener, nil)
 }
 
 func computeTime(timestr string) (int64, int64) {
@@ -122,7 +160,7 @@ func computeTime(timestr string) (int64, int64) {
 	return t - td, interval
 }
 
-func data(w http.ResponseWriter, r *http.Request) {
+func dataHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	datatypes := strings.Split(r.FormValue("type"), ",")
 	ids := strings.Split(r.FormValue("id"), ",")
 	//channel := r.FormValue("channel")
@@ -193,7 +231,7 @@ func data(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func wind(w http.ResponseWriter, r *http.Request) {
+func windHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	t, _ := computeTime(r.FormValue("time"))
 
 	var result struct {
@@ -222,7 +260,7 @@ func wind(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func change(w http.ResponseWriter, r *http.Request) {
+func changeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	datatypes := strings.Split(r.FormValue("type"), ",")
 	ids := strings.Split(r.FormValue("id"), ",")
 	channel, err := strconv.Atoi(r.FormValue("channel"))

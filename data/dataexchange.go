@@ -1,4 +1,4 @@
-package gowx
+package data
 
 import "time"
 
@@ -11,5 +11,5 @@ type SensorData struct {
 }
 
 type SensorParser interface {
-	Parse(key string, data string, config *Config) SensorData
+	Parse(key string, data string) SensorData
 }
