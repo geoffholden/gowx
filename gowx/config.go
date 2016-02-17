@@ -1,8 +1,8 @@
 package gowx
 
 import (
-	"code.google.com/p/gcfg"
 	"flag"
+	"gopkg.in/gcfg.v1"
 )
 
 var configFile string
