@@ -29,7 +29,7 @@ import (
 var docCmd = &cobra.Command{
 	Use:   "doc",
 	Short: "Documentation generator",
-	Long: `Generators for documentation and shell completion.`
+	Long:  `Generators for documentation and shell completion.`,
 }
 
 func init() {
