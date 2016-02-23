@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -27,7 +26,6 @@ import (
 	"github.com/spf13/viper"
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
-	_ "github.com/mattn/go-sqlite3" // Load SQLite DB driver
 
 	"github.com/geoffholden/gowx/data"
 )
@@ -57,21 +55,7 @@ type mapKey struct {
 func aggregator(cmd *cobra.Command, args []string) {
 	fmt.Println("aggregator called")
 
-	db, err := sql.Open(viper.GetString("dbDriver"), viper.GetString("database"))
-	if err != nil {
-		panic(err)
-	}
-	_, err = db.Exec(`
-	CREATE TABLE IF NOT EXISTS samples (
-		timestamp   integer,
-		id          text,
-		channel     integer,
-		serial      string,
-		key         string,
-		min         real,
-		max         real,
-		avg         real
-	)`)
+	db, err := data.OpenDatabase()
 	if err != nil {
 		panic(err)
 	}
@@ -104,18 +88,18 @@ func aggregator(cmd *cobra.Command, args []string) {
 
 	ticker := time.NewTicker(time.Duration(viper.GetInt("interval")) * time.Second)
 
-	data := make(map[mapKey][]float64)
+	thedata := make(map[mapKey][]float64)
 	for {
 		select {
 		case <-ticker.C:
-			sumData(&data, db)
+			sumData(&thedata, db)
 		case d := <-dataChannel:
-			addData(&data, d)
+			addData(&thedata, d)
 		}
 	}
 }
 
-func addData(data *map[mapKey][]float64, d data.SensorData) {
+func addData(thedata *map[mapKey][]float64, d data.SensorData) {
 	fmt.Printf("Adding data:\n")
 	for k, v := range d.Data {
 		fmt.Printf("\t\t%s -> %f\n", k, v)
@@ -125,25 +109,16 @@ func addData(data *map[mapKey][]float64, d data.SensorData) {
 			Serial:  d.Serial,
 			Key:     k,
 		}
-		(*data)[key] = append((*data)[key], v)
+		(*thedata)[key] = append((*thedata)[key], v)
 	}
 }
 
-func sumData(data *map[mapKey][]float64, db *sql.DB) {
+func sumData(thedata *map[mapKey][]float64, db *data.Database) {
 	direction := regexp.MustCompile(`Dir$`)
-
-	stmt := `INSERT INTO samples (
-		timestamp,
-		id,
-		channel,
-		serial,
-		key,
-		min, max, avg
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
 
 	timestamp := time.Now().UTC().Unix()
 
-	for key, slice := range *data {
+	for key, slice := range *thedata {
 		var min, max, avg float64
 		switch {
 		case direction.MatchString(key.Key):
@@ -155,12 +130,12 @@ func sumData(data *map[mapKey][]float64, db *sql.DB) {
 			max = maximum(slice)
 			avg = mean(slice)
 		}
-		_, err := db.Exec(stmt, timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
+		err := db.InsertRow(timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
 		if err != nil {
 			fmt.Printf("%s\n", err.Error())
 		}
 	}
-	*data = make(map[mapKey][]float64)
+	*thedata = make(map[mapKey][]float64)
 }
 
 func minimum(d []float64) float64 {

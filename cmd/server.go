@@ -16,7 +16,6 @@ package cmd
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -93,7 +92,7 @@ func server(cmd *cobra.Command, args []string) {
 	defer client.Disconnect(0)
 
 	var err error
-	db, err := sql.Open(viper.GetString("dbDriver"), viper.GetString("database"))
+	db, err := data.OpenDatabase()
 	if err != nil {
 		panic(err)
 	}
@@ -160,7 +159,7 @@ func computeTime(timestr string) (int64, int64) {
 	return t - td, interval
 }
 
-func dataHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	datatypes := strings.Split(r.FormValue("type"), ",")
 	ids := strings.Split(r.FormValue("id"), ",")
 	//channel := r.FormValue("channel")
@@ -182,47 +181,40 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 				id = "%"
 			}
 			key := rxp.ReplaceAllString(datatype, "")
-			var rows *sql.Rows
+			var rows <-chan data.Row
 			if interval > 1 {
-				rows, _ = db.Query("select cast(timestamp/? as INTEGER) * ? as ts,min(min),max(max),avg(avg) from samples where key = ? and id like ? and timestamp > ? group by ts order by ts", interval, interval, key, id, t)
+				rows = db.QueryRowsInterval(t, key, id, interval)
 			} else {
-				rows, _ = db.Query("select timestamp,min,max,avg from samples where key = ? and id like ? and timestamp > ? order by timestamp", key, id, t)
+				rows = db.QueryRows(t, key, id)
 			}
-			defer rows.Close()
 
 			col := rxp.FindStringSubmatch(datatype)
 
-			for rows.Next() {
-				var timestamp int64
-				var min, max, avg float64
-				err := rows.Scan(&timestamp, &min, &max, &avg)
-				if err != nil {
-					panic(err)
-				}
-				_, off := time.Unix(timestamp, 0).Zone()
-				t := (time.Unix(timestamp, 0).Unix() + int64(off)) * 1000
+			for row := range rows {
+				_, off := time.Unix(row.Timestamp, 0).Zone()
+				t := (time.Unix(row.Timestamp, 0).Unix() + int64(off)) * 1000
 				sub := make([]interface{}, 2)
 				sub[0] = t
 				if len(col) > 1 {
 					switch col[1] {
 					case "min":
-						sub[1] = min
+						sub[1] = row.Min
 					case "max":
-						sub[1] = max
+						sub[1] = row.Max
 					case "avg":
-						sub[1] = avg
+						sub[1] = row.Avg
 					default:
-						sub[1] = avg
+						sub[1] = row.Avg
 					}
 				} else {
-					sub[1] = avg
+					sub[1] = row.Avg
 				}
 				result.Data[index] = append(result.Data[index], sub)
 
 				sub = make([]interface{}, 3)
 				sub[0] = t
-				sub[1] = min
-				sub[2] = max
+				sub[1] = row.Min
+				sub[2] = row.Max
 				result.Errorbars[index] = append(result.Errorbars[index], sub)
 			}
 			index++
@@ -231,7 +223,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	json.NewEncoder(w).Encode(result)
 }
 
-func windHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	t, _ := computeTime(r.FormValue("time"))
 
 	var result struct {
@@ -242,25 +234,14 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	result.Wind = make([]float64, 32)
 	result.Gust = make([]float64, 32)
 
-	rows, err := db.Query("select (((dir.avg + 5.125 + 360) % 360) / 11.25) % 32 as dir,max(gust.max),avg(avg.avg) from samples dir inner join samples gust on gust.timestamp = dir.timestamp inner join samples avg on avg.timestamp = gust.timestamp where dir.key = 'WindDir' and gust.key = 'CurrentWind' and avg.key = 'AverageWind' and dir.timestamp > ? group by dir;", t)
-	if err != nil {
-		panic(err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var dir, gust, avg float64
-		err := rows.Scan(&dir, &gust, &avg)
-		if err != nil {
-			panic(err)
-		}
-		result.Wind[int(dir)] = avg
-		result.Gust[int(dir)] = gust
+	for row := range db.QueryWind(t) {
+		result.Wind[int(row.Dir)] = row.Avg
+		result.Gust[int(row.Dir)] = row.Gust
 	}
 	json.NewEncoder(w).Encode(result)
 }
 
-func changeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func changeHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	datatypes := strings.Split(r.FormValue("type"), ",")
 	ids := strings.Split(r.FormValue("id"), ",")
 	channel, err := strconv.Atoi(r.FormValue("channel"))
@@ -280,17 +261,11 @@ func changeHandler(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 			if id == "" {
 				id = "%"
 			}
-			row := db.QueryRow("select avg from samples where key = ? and id like ? and channel = ? and timestamp > ? order by timestamp limit 1", datatype, id, channel, t)
-
-			var old float64
-			err := row.Scan(&old)
+			old, err := db.QueryFirst(t, datatype, id, channel)
 			if err != nil {
 			}
 
-			row = db.QueryRow("select avg from samples where key = ? and id like ? and channel = ? and timestamp > ? order by timestamp desc limit 1", datatype, id, channel, t)
-
-			var now float64
-			err = row.Scan(&now)
+			now, err := db.QueryLast(t, datatype, id, channel)
 			if err != nil {
 			}
 

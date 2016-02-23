@@ -17,7 +17,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/geoffholden/gowx/data"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -56,8 +58,12 @@ func init() {
 
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is gowx.yaml)")
 	RootCmd.PersistentFlags().String("broker", "tcp://localhost:1883", "MQTT Server")
-	RootCmd.PersistentFlags().String("dbDriver", "sqlite3", "Database Driver, one of (sqlite3)")
 	RootCmd.PersistentFlags().String("database", "gowx.db", "Database")
+
+	dbdrivers := data.DBDrivers()
+	if len(dbdrivers) > 1 {
+		RootCmd.PersistentFlags().String("dbDriver", "sqlite3", "Database Driver, one of ["+strings.Join(dbdrivers, ", ")+"]")
+	}
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// RootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
