@@ -12,7 +12,7 @@ type sqlite_driver struct {
 }
 
 func init() {
-	RegisterDBDriver("sqlite", sqlite_driver{})
+	RegisterDBDriver("sqlite3", sqlite_driver{})
 }
 
 func (sqlite sqlite_driver) OpenDatabase(db *sql.DB) error {
