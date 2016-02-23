@@ -51,6 +51,8 @@ func init() {
 	dbdrivers := data.DBDrivers()
 	if len(dbdrivers) > 1 {
 		RootCmd.PersistentFlags().String("dbDriver", "sqlite3", "Database Driver, one of ["+strings.Join(dbdrivers, ", ")+"]")
+	} else {
+		viper.SetDefault("dbDriver", "sqlite3")
 	}
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

@@ -28,11 +28,16 @@ var serverCmd = &cobra.Command{
 	Run:     server,
 }
 
+func serverInit() {
+	if !serverCmd.Flags().HasFlags() {
+		serverCmd.Flags().String("webroot", "web", "Root directory for the web server.")
+		serverCmd.Flags().String("address", ":0", "Address and port to listen on.")
+	}
+}
+
 func init() {
 	RootCmd.AddCommand(serverCmd)
-
-	serverCmd.Flags().String("webroot", "web", "Root directory for the web server.")
-	serverCmd.Flags().String("address", ":0", "Address and port to listen on.")
+	serverInit()
 	viper.BindPFlags(serverCmd.Flags())
 }
 

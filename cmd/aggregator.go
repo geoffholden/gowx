@@ -26,10 +26,15 @@ var aggregatorCmd = &cobra.Command{
 	Run:   aggregator,
 }
 
+func aggregatorInit() {
+	if !aggregatorCmd.Flags().HasFlags() {
+		aggregatorCmd.Flags().Int("interval", 300, "Interval (in seconds) to aggregate data.")
+	}
+}
+
 func init() {
 	RootCmd.AddCommand(aggregatorCmd)
-
-	aggregatorCmd.Flags().Int("interval", 300, "Interval (in seconds) to aggregate data.")
+	aggregatorInit()
 	viper.BindPFlags(aggregatorCmd.Flags())
 }
 

@@ -28,13 +28,17 @@ var parserCmd = &cobra.Command{
 	Run:   parser,
 }
 
+func parserInit() {
+	if !parserCmd.Flags().HasFlags() {
+		parserCmd.Flags().String("port", "", "Serial port to connect to")
+		parserCmd.Flags().Int("baud", 9600, "Serial baud rate")
+		parserCmd.Flags().Int("elevation", 0, "Elevation above sea level")
+	}
+}
+
 func init() {
 	RootCmd.AddCommand(parserCmd)
-
-	parserCmd.Flags().String("port", "", "Serial port to connect to")
-	parserCmd.Flags().Int("baud", 9600, "Serial baud rate")
-	parserCmd.Flags().Int("elevation", 0, "Elevation about sea level")
-
+	parserInit()
 	viper.BindPFlags(parserCmd.Flags())
 }
 
