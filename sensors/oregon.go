@@ -1,8 +1,12 @@
+// Copyright © 2016 Geoff Holden <geoff@geoffholden.com>
+
 package sensors
 
-import "github.com/geoffholden/gowx/data"
-import "strconv"
-import "time"
+import (
+	"github.com/geoffholden/gowx/data"
+	"strconv"
+	"time"
+)
 
 type Oregon struct {
 	data.SensorParser
