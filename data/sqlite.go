@@ -52,22 +52,31 @@ func (sqlite sqlite_driver) InsertRow(db *sql.DB, timestamp int64, id string, ch
 	return err
 }
 
-func (sqlite sqlite_driver) QueryWind(db *sql.DB, start int64) (*sql.Rows, error) {
+func (sqlite sqlite_driver) QueryWind(db *sql.DB, start int64, key string, col string, id string, channel int) (*sql.Rows, error) {
+	var column string
+	switch col {
+	case "avg":
+		column = "avg(d.avg)"
+	case "min":
+		column = "min(d.min)"
+	case "max":
+		column = "max(d.max)"
+	default:
+		column = "avg(d.avg)"
+	}
 	stmt := `SELECT
-			(((dir.avg + 5.125 + 360) % 360) / 11.25) % 32 AS dir,
-			max(gust.max),
-			avg(avg.avg)
-		FROM samples dir
-		INNER JOIN samples gust
-			ON gust.timestamp = dir.timestamp
-		INNER JOIN samples avg
-			ON avg.timestamp = gust.timestamp
+			(((dir.avg + 5.125 + 360) % 360) / 11.25) % 32 AS dir,` +
+		column +
+		` FROM samples dir
+		INNER JOIN samples d
+			ON d.timestamp = dir.timestamp
 		WHERE dir.key = 'WindDir'
-			AND gust.key = 'CurrentWind'
-			AND avg.key = 'AverageWind'
+			AND d.key = ?
+			AND dir.id LIKE ?
+			AND d.id LIKE ?
 			AND dir.timestamp > ?
 		GROUP BY dir;`
-	return db.Query(stmt, start)
+	return db.Query(stmt, key, id, id, start)
 }
 
 func (sqlite sqlite_driver) QueryFirst(db *sql.DB, start int64, key string, id string, channel int) (float64, error) {
@@ -125,6 +134,7 @@ func (sqlite sqlite_driver) QueryRowsInterval(db *sql.DB, start int64, key strin
 			key = ? AND
 			id LIKE ? AND
 			timestamp > ?
-		ORDER BY timestamp`
+		GROUP BY ts
+		ORDER BY ts`
 	return db.Query(stmt, interval, interval, key, id, start)
 }

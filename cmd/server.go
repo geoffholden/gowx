@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"regexp"
@@ -39,6 +40,19 @@ func init() {
 	RootCmd.AddCommand(serverCmd)
 	serverInit()
 	viper.BindPFlags(serverCmd.Flags())
+
+	viper.SetDefault("units", map[string]string{
+		"Temperature":  "C",
+		"Pressure":     "hPa",
+		"RainfallRate": "mm/h",
+		"RainTotal":    "mm",
+		"WindSpeed":    "m/s",
+	})
+	viper.SetDefault("temperature", []map[string]string{{"type": "Temperature", "label": "Temperature"}})
+	viper.SetDefault("pressure", []map[string]string{{"type": "Pressure", "label": "Pressure"}})
+	viper.SetDefault("humidity", []map[string]string{{"type": "Humidity", "label": "Humidity"}})
+	viper.SetDefault("wind", []map[string]string{{"type": "AverageWind[avg]", "label": "Average Wind"}, {"type": "CurrentWind[max]", "label": "Gusts"}})
+	viper.SetDefault("rain", []map[string]string{{"type": "RainRate", "label": "Rainfall Rate"}, {"type": "RainTotal", "label": "Total Rain"}})
 }
 
 func server(cmd *cobra.Command, args []string) {
@@ -90,7 +104,34 @@ func server(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
-	http.Handle("/", http.FileServer(http.Dir(viper.GetString("webroot"))))
+	var d templateData
+
+	d.Units = viper.GetStringMapString("units")
+	bytes, err := json.Marshal(convertToStringMap("temperature"))
+	if err == nil {
+		d.Temperature = string(bytes)
+	}
+	bytes, err = json.Marshal(convertToStringMap("pressure"))
+	if err == nil {
+		d.Pressure = string(bytes)
+	}
+	bytes, err = json.Marshal(convertToStringMap("humidity"))
+	if err == nil {
+		d.Humidity = string(bytes)
+	}
+	bytes, err = json.Marshal(convertToStringMap("wind"))
+	if err == nil {
+		d.Wind = string(bytes)
+	}
+	bytes, err = json.Marshal(convertToStringMap("rain"))
+	if err == nil {
+		d.Rain = string(bytes)
+	}
+
+	staticServer := http.FileServer(http.Dir(viper.GetString("webroot")))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		serveTemplate(w, r, staticServer, d)
+	})
 
 	http.HandleFunc("/data.json", func(w http.ResponseWriter, r *http.Request) {
 		dataHandler(w, r, db)
@@ -116,6 +157,54 @@ func server(cmd *cobra.Command, args []string) {
 	fmt.Println("Listening on", addr.String())
 
 	http.Serve(listener, nil)
+}
+
+func convertToStringMap(name string) []map[string]string {
+	if result, ok := viper.Get(name).([]map[string]string); ok {
+		return result
+	} else if array, ok := viper.Get(name).([]interface{}); ok {
+		result := make([]map[string]string, len(array))
+		for index, query := range array {
+			if interfaceMap, ok := query.(map[interface{}]interface{}); ok {
+				result[index] = make(map[string]string)
+				for k, v := range interfaceMap {
+					if kstr, ok := k.(string); ok {
+						if vstr, ok := v.(string); ok {
+							result[index][kstr] = vstr
+						}
+					}
+				}
+			}
+		}
+		return result
+	}
+	return nil
+}
+
+type templateData struct {
+	Units        map[string]string
+	Temperature  string
+	Pressure     string
+	Humidity     string
+	Wind         string
+	Rain         string
+	TemperatureQ string
+}
+
+func serveTemplate(w http.ResponseWriter, r *http.Request, static http.Handler, thedata templateData) {
+	temp, err := template.ParseGlob(viper.GetString("webroot") + "/*.html")
+	if err != nil {
+		panic(err)
+	}
+	name := r.URL.Path
+	if name == "/" {
+		name = "index.html"
+	}
+	if temp.Lookup(name) != nil {
+		err = temp.ExecuteTemplate(w, name, thedata)
+	} else {
+		static.ServeHTTP(w, r)
+	}
 }
 
 func computeTime(timestr string) (int64, int64) {
@@ -153,8 +242,11 @@ func computeTime(timestr string) (int64, int64) {
 }
 
 func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
-	datatypes := strings.Split(r.FormValue("type"), ",")
-	ids := strings.Split(r.FormValue("id"), ",")
+	var queries []map[string]string
+	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
+	if err != nil {
+		fmt.Println(err)
+	}
 	//channel := r.FormValue("channel")
 
 	t, interval := computeTime(r.FormValue("time"))
@@ -162,56 +254,66 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var result struct {
 		Data      [][]interface{}
 		Errorbars [][]interface{}
+		Label     []string
 	}
-	result.Data = make([][]interface{}, len(datatypes)*len(ids))
-	result.Errorbars = make([][]interface{}, len(datatypes)*len(ids))
+	result.Data = make([][]interface{}, len(queries))
+	result.Errorbars = make([][]interface{}, len(queries))
+	result.Label = make([]string, len(queries))
 
 	rxp := regexp.MustCompile(`\[([^]]*)\]`)
-	index := 0
-	for _, datatype := range datatypes {
-		for _, id := range ids {
-			if id == "" {
-				id = "%"
-			}
-			key := rxp.ReplaceAllString(datatype, "")
-			var rows <-chan data.Row
-			if interval > 1 {
-				rows = db.QueryRowsInterval(t, key, id, interval)
-			} else {
-				rows = db.QueryRows(t, key, id)
-			}
+	for index, querymap := range queries {
+		id := "%"
+		if _, ok := querymap["id"]; ok {
+			id = querymap["id"]
+		}
+		datatype := "%"
+		if _, ok := querymap["type"]; ok {
+			datatype = querymap["type"]
+		}
+		if _, ok := querymap["label"]; ok {
+			result.Label[index] = querymap["label"]
+		} else {
+			result.Label[index] = "Unknown"
+		}
 
-			col := rxp.FindStringSubmatch(datatype)
+		key := rxp.ReplaceAllString(datatype, "")
+		var rows <-chan data.Row
+		if interval > 1 {
+			rows = db.QueryRowsInterval(t, key, id, interval)
+		} else {
+			rows = db.QueryRows(t, key, id)
+		}
 
-			for row := range rows {
-				_, off := time.Unix(row.Timestamp, 0).Zone()
-				t := (time.Unix(row.Timestamp, 0).Unix() + int64(off)) * 1000
-				sub := make([]interface{}, 2)
-				sub[0] = t
-				if len(col) > 1 {
-					switch col[1] {
-					case "min":
-						sub[1] = row.Min
-					case "max":
-						sub[1] = row.Max
-					case "avg":
-						sub[1] = row.Avg
-					default:
-						sub[1] = row.Avg
-					}
-				} else {
+		col := rxp.FindStringSubmatch(datatype)
+
+		for row := range rows {
+			_, off := time.Unix(row.Timestamp, 0).Zone()
+			t := (time.Unix(row.Timestamp, 0).Unix() + int64(off)) * 1000
+			sub := make([]interface{}, 2)
+			sub[0] = t
+			if len(col) > 1 {
+				switch col[1] {
+				case "min":
+					sub[1] = row.Min
+				case "max":
+					sub[1] = row.Max
+				case "avg":
+					sub[1] = row.Avg
+				default:
 					sub[1] = row.Avg
 				}
-				result.Data[index] = append(result.Data[index], sub)
-
-				sub = make([]interface{}, 3)
-				sub[0] = t
-				sub[1] = row.Min
-				sub[2] = row.Max
-				result.Errorbars[index] = append(result.Errorbars[index], sub)
+			} else {
+				sub[1] = row.Avg
 			}
-			index++
+			result.Data[index] = append(result.Data[index], sub)
+
+			sub = make([]interface{}, 3)
+			sub[0] = t
+			sub[1] = row.Min
+			sub[2] = row.Max
+			result.Errorbars[index] = append(result.Errorbars[index], sub)
 		}
+		index++
 	}
 	json.NewEncoder(w).Encode(result)
 }
@@ -219,18 +321,60 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	t, _ := computeTime(r.FormValue("time"))
 
+	var queries []map[string]string
+	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	var result struct {
-		Wind []float64
-		Gust []float64
+		Data  [][]float64
+		Label []string
 	}
 
-	result.Wind = make([]float64, 32)
-	result.Gust = make([]float64, 32)
+	result.Data = make([][]float64, len(queries))
+	result.Label = make([]string, len(queries))
 
-	for row := range db.QueryWind(t) {
-		result.Wind[int(row.Dir)] = row.Avg
-		result.Gust[int(row.Dir)] = row.Gust
+	rxp := regexp.MustCompile(`\[([^]]*)\]`)
+	for index, querymap := range queries {
+		result.Label[index] = querymap["label"]
+		result.Data[index] = make([]float64, 32)
+
+		id := "%"
+		if _, ok := querymap["id"]; ok {
+			id = querymap["id"]
+		}
+		datatype := "%"
+		if _, ok := querymap["type"]; ok {
+			datatype = querymap["type"]
+		}
+		if _, ok := querymap["label"]; ok {
+			result.Label[index] = querymap["label"]
+		} else {
+			result.Label[index] = "Unknown"
+		}
+		cols := rxp.FindStringSubmatch(datatype)
+		var col string
+		if len(cols) > 1 {
+			col = cols[1]
+		} else {
+			col = "avg"
+		}
+
+		key := rxp.ReplaceAllString(datatype, "")
+
+		for row := range db.QueryWind(t, key, col, id, 0) {
+			result.Data[index][int(row.Dir)] = row.Value
+		}
 	}
+
+	// result.Wind = make([]float64, 32)
+	// result.Gust = make([]float64, 32)
+
+	// for row := range db.QueryWind(t) {
+	// 	result.Wind[int(row.Dir)] = row.Avg
+	// 	result.Gust[int(row.Dir)] = row.Gust
+	// }
 	json.NewEncoder(w).Encode(result)
 }
 

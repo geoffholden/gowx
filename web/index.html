@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -18,7 +17,7 @@
 <div class="current">
     <div>
         <div>
-            Temperature: <span class="reading"><span id="current_temp"></span>&deg;C</span>
+            Temperature: <span class="reading"><span id="current_temp"></span>&deg;{{.Units.Temperature}}</span>
         </div>
 
         <div>
@@ -26,7 +25,7 @@
         </div>
 
         <div>
-            Pressure: <span class="reading"><span id="current_pressure"></span>hPa</span>
+            Pressure: <span class="reading"><span id="current_pressure"></span>{{.Units.Pressure}}</span>
         </div>
 
         <div>
@@ -36,13 +35,13 @@
 
     <div>
         <div>
-            Rainfall Rate: <span class="reading"><span id="current_rain"></span>mm/h</span>
+            Rainfall Rate: <span class="reading"><span id="current_rain"></span>{{.Units.RainfallRate}}</span>
         </div>
         <div>
-            24h Rainfall: <span class="reading"><span id="rain_total"></span>mm</span>
+            24h Rainfall: <span class="reading"><span id="rain_total"></span>{{.Units.RainTotal}}</span>
         </div>
         <div>
-            Wind: <span class="reading"><span id="current_wind"></span>m/s</span>
+            Wind: <span class="reading"><span id="current_wind"></span>{{.Units.WindSpeed}}</span>
         </div>
 
         <div>
@@ -91,12 +90,12 @@
             enabled: false,
         },
     });
-    makeChart("/data.json?type=Pressure&time=" + timeframe, pressure, "Pressure", "hPa", showRange);
-    makeChart("/data.json?type=Temperature&id=OS3:F824,DHT,BMP&time=" + timeframe, temp, ["Temperature", "Outside", "Inside (DHT)", "Inside (BMP)"], "\u00B0C", showRange);
-    makeChart("/data.json?type=Humidity&id=OS3:F824,DHT&time=" + timeframe, humidity, ["Humidity", "Outside", "Inside"], "%", showRange);
-    makeChart("/data.json?type=AverageWind[avg],CurrentWind[max]&time=" + timeframe, 'wind', ["Wind Speed", "Average Wind", "Gusts"], "m/s", false, showRange);
+    makeChart("/data.json?query={{.Pressure}}&time=" + timeframe, pressure, "Pressure", {{.Units.Pressure}}, showRange);
+    makeChart("/data.json?query={{.Temperature}}&time=" + timeframe, temp, "Temperature", "\u00B0{{.Units.Temperature}}", showRange);
+    makeChart("/data.json?query={{.Humidity}}&time=" + timeframe, humidity, "Humidity", "%", showRange);
+    makeChart("/data.json?query={{.Wind}}&time=" + timeframe, 'wind', "Wind Speed", "{{.Units.WindSpeed}}", false);
 
-    $.getJSON("/data.json?type=RainRate,RainTotal&time=" + timeframe, function(data) {
+    $.getJSON("/data.json?query={{.Rain}}&time=" + timeframe, function(data) {
         initialrain = data.Data[1][0][1];
         for (i = 0; i < data.Data[1].length; i++) {
             data.Data[1][i][1] -= initialrain;
@@ -115,14 +114,14 @@
             },
             yAxis: [{
                 title: {
-                    text: 'Rainfall Rate (mm/h)',
+                    text: data.Label[0] + ' ({{.Units.RainfallRate}})',
                 },
                 minRange: 1,
                 min: 0,
             },
             {
                 title: {
-                    text: 'Total Rain (mm)'
+                    text: data.Label[1] + ' ({{.Units.RainTotal}})'
                 },
                 opposite: true,
                 minRange: 1,
@@ -137,18 +136,18 @@
             series: [{
                     type: 'spline',
                     data: data.Data[0],
-                    name: 'Rainfall Rate',
+                    name: data.Label[0],
                     tooltip: {
-                        valueSuffix: " mm/h"
+                        valueSuffix: " {{.Units.RainfallRate}}"
                     },
                 },
                 {
                     type: 'spline',
                     data: data.Data[1],
-                    name: 'Total Rain',
+                    name: data.Label[1],
                     yAxis: 1,
                     tooltip: {
-                        valueSuffix: " mm"
+                        valueSuffix: " {{.Units.RainTotal}}"
                     },
                 }],
         };
@@ -156,7 +155,7 @@
         var chart = new Highcharts.Chart(options);
 
         setInterval(function() {
-            $.getJSON("/data.json?type=RainRate,RainTotal&time=" + timeframe, function(data) {
+            $.getJSON("/data.json?query={{.Rain}}&time=" + timeframe, function(data) {
                 initialrain = data.Data[1][0][1];
                 for (i = 0; i < data.Data[1].length; i++) {
                     data.Data[1][i][1] -= initialrain;
@@ -167,7 +166,7 @@
         },300000);
     });
 
-    $.getJSON("/wind.json?time=" + timeframe, function(data) {
+    $.getJSON("/wind.json?query={{.Wind}}&time=" + timeframe, function(data) {
         var options = {
             chart: {
                 renderTo: 'winddir',
@@ -212,21 +211,21 @@
             series: [
                 {
                     type: 'area',
-                    data: data.Wind,
-                    name: 'Average',
+                    data: data.Data[0],
+                    name: data.Label[0],
                     zIndex: 1,
                 },
                 {
                     type: 'area',
-                    data: data.Gust,
+                    data: data.Data[1],
                     fillOpacity: 0.3,
                     zIndex: 0,
-                    name: 'Gust',
+                    name: data.Label[1],
                 },
             ],
             tooltip: {
                 valueDecimals: 1,
-                valueSuffix: " m/s",
+                valueSuffix: " {{.Units.WindSpeed}}",
             },
         };
         var chart = new Highcharts.Chart(options);

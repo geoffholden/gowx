@@ -89,26 +89,20 @@ function degreesToCardinal(angle) {
 
 function makeChart(query, container, name, units, showRange) {
     showRange = typeof showRange !== 'undefined' ? showRange : true;
-    var title;
-    if (name instanceof Array) {
-        title = name[0];
-    } else {
-        title = name;
-    }
     var options = {
         chart: {
             renderTo: container,
             zoomType: 'x',
         },
         title: {
-            text: title,
+            text: name,
         },
         xAxis: {
             type: 'datetime',
         },
         yAxis: {
             title: {
-                text: title + " (" + units + ")",
+                text: name + " (" + units + ")",
             },
             minPadding: 0,
             maxPadding: 0,
@@ -121,15 +115,11 @@ function makeChart(query, container, name, units, showRange) {
     $.getJSON(query, function(data) {
         options.series = [];
         for (var i = 0; i < data.Data.length; i++) {
-            if (name instanceof Array) {
-                title = name[i+1];
-            } else {
-                title = name;
-            }
+            title = name
             options.series.push({
                 type: 'spline',
                 data: data.Data[i],
-                name: title,
+                name: data.Label[i],
                 marker: {enabled: false,},
             });
             if (showRange) {

@@ -18,9 +18,8 @@ type Row struct {
 }
 
 type WindRow struct {
-	Dir  float64
-	Gust float64
-	Avg  float64
+	Dir   float64
+	Value float64
 }
 
 var drivers map[string]DBdriver
@@ -29,7 +28,7 @@ type DBdriver interface {
 	OpenDatabase(db *sql.DB) error
 	Close(db *sql.DB)
 	InsertRow(db *sql.DB, timestamp int64, id string, channel int, serial string, key string, min float64, max float64, avg float64) error
-	QueryWind(db *sql.DB, start int64) (*sql.Rows, error)
+	QueryWind(db *sql.DB, start int64, key string, col string, id string, channel int) (*sql.Rows, error)
 	QueryFirst(db *sql.DB, start int64, key string, id string, channel int) (float64, error)
 	QueryLast(db *sql.DB, start int64, key string, id string, channel int) (float64, error)
 	QueryRows(db *sql.DB, start int64, key string, id string) (*sql.Rows, error)
@@ -75,8 +74,8 @@ func (database *Database) InsertRow(timestamp int64, id string, channel int, ser
 	return database.driver.InsertRow(database.db, timestamp, id, channel, serial, key, min, max, avg)
 }
 
-func (database *Database) QueryWind(start int64) <-chan WindRow {
-	rows, err := database.driver.QueryWind(database.db, start)
+func (database *Database) QueryWind(start int64, key string, col string, id string, channel int) <-chan WindRow {
+	rows, err := database.driver.QueryWind(database.db, start, key, col, id, channel)
 	if err != nil {
 		return nil
 	}
@@ -85,12 +84,12 @@ func (database *Database) QueryWind(start int64) <-chan WindRow {
 	go func() {
 		defer rows.Close()
 		for rows.Next() {
-			var dir, gust, avg float64
-			err := rows.Scan(&dir, &gust, &avg)
+			var dir, value float64
+			err := rows.Scan(&dir, &value)
 			if err != nil {
 				continue
 			}
-			ch <- WindRow{dir, gust, avg}
+			ch <- WindRow{dir, value}
 		}
 		close(ch)
 	}()
