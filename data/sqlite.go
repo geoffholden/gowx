@@ -16,7 +16,7 @@ func init() {
 }
 
 func (sqlite sqlite_driver) OpenDatabase(db *sql.DB) error {
-	_, err := db.Exec(`
+	if _, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS samples (
 		timestamp   integer,
 		id          text,
@@ -26,8 +26,19 @@ func (sqlite sqlite_driver) OpenDatabase(db *sql.DB) error {
 		min         real,
 		max         real,
 		avg         real
-	)`)
-	if err != nil {
+	)`); err != nil {
+		db.Close()
+		return err
+	}
+
+	if _, err := db.Exec(`
+	CREATE INDEX IF NOT EXISTS i_samples ON samples (
+		timestamp,
+		key,
+		id,
+		channel,
+		serial
+	)`); err != nil {
 		db.Close()
 		return err
 	}
