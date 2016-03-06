@@ -78,6 +78,7 @@ func serialLoop(client *MQTT.Client) {
 	}
 	s, err := serial.OpenPort(c)
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 	defer s.Close()
@@ -90,12 +91,14 @@ func parser(cmd *cobra.Command, args []string) {
 
 	client := MQTT.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		jww.FATAL.Println(token.Error())
 		panic(token.Error())
 	}
 	defer client.Disconnect(0)
 
 	fi, err := os.Stat(viper.GetString("port"))
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 	if fi.Mode()&os.ModeType != 0 {
@@ -103,6 +106,7 @@ func parser(cmd *cobra.Command, args []string) {
 	} else {
 		file, err := os.Open(viper.GetString("port"))
 		if err != nil {
+			jww.FATAL.Println(err)
 			panic(err)
 		}
 		defer file.Close()

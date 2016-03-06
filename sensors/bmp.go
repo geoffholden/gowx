@@ -4,6 +4,7 @@ package sensors
 
 import (
 	"github.com/geoffholden/gowx/data"
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 	"math"
 	"strconv"
@@ -47,7 +48,8 @@ func init() {
 func parseSignedShort(s string) int16 {
 	val, err := strconv.ParseUint(s, 16, 16)
 	if err != nil {
-		panic(err)
+		jww.ERROR.Println(err)
+		return 0
 	}
 
 	var result int16
@@ -67,7 +69,8 @@ func (b *BMP) Parse(key string, input string) data.SensorData {
 	case "BM3", "BM4", "BM5":
 		val, err := strconv.ParseUint(input, 16, 16)
 		if err != nil {
-			panic(err)
+			jww.ERROR.Println(err)
+			return data.SensorData{}
 		}
 		b.cal[key[2]-'0'] = int32(val)
 	case "BMA":
@@ -76,13 +79,15 @@ func (b *BMP) Parse(key string, input string) data.SensorData {
 	case "BMV":
 		val, err := strconv.ParseInt(input, 16, 16)
 		if err != nil {
-			panic(err)
+			jww.ERROR.Println(err)
+			return data.SensorData{}
 		}
 		b.avgCount = int32(val)
 	case "BMO":
 		val, err := strconv.ParseInt(input, 16, 16)
 		if err != nil {
-			panic(err)
+			jww.ERROR.Println(err)
+			return data.SensorData{}
 		}
 		b.ossMode = int32(val)
 	case "BMX":

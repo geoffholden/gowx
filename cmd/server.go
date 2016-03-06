@@ -74,13 +74,15 @@ func server(cmd *cobra.Command, args []string) {
 			var data data.SensorData
 			err := decoder.Decode(&data)
 			if err != nil {
-				panic(err)
+				jww.ERROR.Println(err)
+				return
 			}
 			if value, ok := dataMatch("temperature", data); ok {
 				temp := units.NewTemperatureCelsius(value)
 				currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["Temperature"])
 				if err != nil {
-					panic(err)
+					jww.ERROR.Println(err)
+					return
 				}
 			}
 			if value, ok := dataMatch("humidity", data); ok {
@@ -90,14 +92,16 @@ func server(cmd *cobra.Command, args []string) {
 				pres := units.NewPressureHectopascal(value)
 				currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["Pressure"])
 				if err != nil {
-					panic(err)
+					jww.ERROR.Println(err)
+					return
 				}
 			}
 			if value, ok := dataMatch("wind", data); ok {
 				speed := units.NewSpeedMetersPerSecond(value)
 				currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
 				if err != nil {
-					panic(err)
+					jww.ERROR.Println(err)
+					return
 				}
 			}
 			if value, ok := dataMatch("winddir", data); ok {
@@ -121,12 +125,14 @@ func server(cmd *cobra.Command, args []string) {
 			// 	currentData.RainRate = data.Data["RainRate"]
 			// }
 		}); token.Wait() && token.Error() != nil {
+			jww.FATAL.Println(token.Error())
 			panic(token.Error())
 		}
 	}
 
 	client := MQTT.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		jww.FATAL.Println(token.Error())
 		panic(token.Error())
 	}
 	defer client.Disconnect(0)
@@ -134,6 +140,7 @@ func server(cmd *cobra.Command, args []string) {
 	var err error
 	db, err := data.OpenDatabase()
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 
@@ -184,6 +191,7 @@ func server(cmd *cobra.Command, args []string) {
 
 	listener, err := net.Listen("tcp", viper.GetString("address"))
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 	addr := listener.Addr()
@@ -252,6 +260,7 @@ type templateData struct {
 func serveTemplate(w http.ResponseWriter, r *http.Request, static http.Handler, thedata templateData) {
 	temp, err := template.ParseGlob(viper.GetString("webroot") + "/*.html")
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 	name := r.URL.Path
@@ -462,18 +471,12 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 			speed := units.NewSpeedMetersPerSecond(row.Value)
 			result.Data[index][int(row.Dir)], err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
 			if err != nil {
-				panic(err)
+				jww.ERROR.Println(err)
+				return
 			}
 		}
 	}
 
-	// result.Wind = make([]float64, 32)
-	// result.Gust = make([]float64, 32)
-
-	// for row := range db.QueryWind(t) {
-	// 	result.Wind[int(row.Dir)] = row.Avg
-	// 	result.Gust[int(row.Dir)] = row.Gust
-	// }
 	json.NewEncoder(w).Encode(result)
 }
 

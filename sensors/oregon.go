@@ -4,6 +4,7 @@ package sensors
 
 import (
 	"github.com/geoffholden/gowx/data"
+	jww "github.com/spf13/jwalterweatherman"
 	"strconv"
 	"time"
 )
@@ -22,7 +23,8 @@ func (d *Oregon) Parse(key string, input string) data.SensorData {
 	var emptyResult data.SensorData
 	channel, err := strconv.ParseUint(input[4:5], 16, 8)
 	if err != nil {
-		panic(err)
+		jww.ERROR.Println(err)
+		return data.SensorData{}
 	}
 	result := data.SensorData{
 		TimeStamp: time.Now().UTC(),

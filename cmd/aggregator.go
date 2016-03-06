@@ -48,6 +48,7 @@ type mapKey struct {
 func aggregator(cmd *cobra.Command, args []string) {
 	db, err := data.OpenDatabase()
 	if err != nil {
+		jww.FATAL.Println(err)
 		panic(err)
 	}
 
@@ -63,16 +64,19 @@ func aggregator(cmd *cobra.Command, args []string) {
 			var data data.SensorData
 			err := decoder.Decode(&data)
 			if err != nil {
-				panic(err)
+				jww.ERROR.Println(err)
+				return
 			}
 			dataChannel <- data
 		}); token.Wait() && token.Error() != nil {
+			jww.FATAL.Println(token.Error())
 			panic(token.Error())
 		}
 	}
 
 	client := MQTT.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		jww.FATAL.Println(token.Error())
 		panic(token.Error())
 	}
 	defer client.Disconnect(0)
