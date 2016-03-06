@@ -16,9 +16,9 @@ function populateCurrentData() {
         $('#current_wind').html(data['Wind'].toFixed(1));
         $('#current_wind_dir').html(degreesToCardinal(data['WindDir']));
         $('#current_wind_angle').css("transform", "rotate(" + (data['WindDir'] - 90) + "deg)");
-        $('#current_rain').html(data['RainRate'].toFixed(1));
+        $('#current_rain').html(data['RainRate'].toFixed(2));
     });
-    $.getJSON("/change.json?type=Pressure&time=3h", function(data) {
+    $.getJSON("/change.json?key=Pressure&type=pressure&time=3h", function(data) {
         if (data.Change[0] >= 0.1) {
             result = "Rising";
         } else if (data.Change[0] <= -0.1) {
@@ -40,8 +40,8 @@ function populateCurrentData() {
         }
         $('#pressure_tendency').html(result);
     });
-    $.getJSON("/change.json?type=RainTotal&time=24h", function(data) {
-        $('#rain_total').html(data.Change[0].toFixed(1));
+    $.getJSON("/change.json?key=RainTotal&type=rain&time=24h", function(data) {
+        $('#rain_total').html(data.Change[0].toFixed(2));
     });
     setTimeout(populateCurrentData, 30000);
 }

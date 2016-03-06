@@ -16,6 +16,7 @@ import (
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"github.com/geoffholden/gowx/data"
+	"github.com/geoffholden/gowx/units"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -75,18 +76,50 @@ func server(cmd *cobra.Command, args []string) {
 			if err != nil {
 				panic(err)
 			}
-			switch data.ID {
-			case "OS3:F824":
-				currentData.Temperature = data.Data["Temperature"]
-				currentData.Humidity = data.Data["Humidity"]
-			case "BMP":
-				currentData.Pressure = data.Data["Pressure"]
-			case "OS3:1984":
-				currentData.Wind = data.Data["AverageWind"]
-				currentData.WindDir = data.Data["WindDir"]
-			case "OS3:2914":
-				currentData.RainRate = data.Data["RainRate"]
+			if value, ok := dataMatch("temperature", data); ok {
+				temp := units.NewTemperatureCelsius(value)
+				currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["Temperature"])
+				if err != nil {
+					panic(err)
+				}
 			}
+			if value, ok := dataMatch("humidity", data); ok {
+				currentData.Humidity = value
+			}
+			if value, ok := dataMatch("pressure", data); ok {
+				pres := units.NewPressureHectopascal(value)
+				currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["Pressure"])
+				if err != nil {
+					panic(err)
+				}
+			}
+			if value, ok := dataMatch("wind", data); ok {
+				speed := units.NewSpeedMetersPerSecond(value)
+				currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
+				if err != nil {
+					panic(err)
+				}
+			}
+			if value, ok := dataMatch("winddir", data); ok {
+				currentData.WindDir = value
+			}
+			if value, ok := dataMatch("rain", data); ok {
+				rate := units.NewDistanceMillimeters(value)
+				currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["Rain"])
+			}
+
+			// switch data.ID {
+			// case "OS3:F824":
+			// 	currentData.Temperature = data.Data["Temperature"]
+			// 	currentData.Humidity = data.Data["Humidity"]
+			// case "BMP":
+			// 	currentData.Pressure = data.Data["Pressure"]
+			// case "OS3:1984":
+			// 	currentData.Wind = data.Data["AverageWind"]
+			// 	currentData.WindDir = data.Data["WindDir"]
+			// case "OS3:2914":
+			// 	currentData.RainRate = data.Data["RainRate"]
+			// }
 		}); token.Wait() && token.Error() != nil {
 			panic(token.Error())
 		}
@@ -159,6 +192,32 @@ func server(cmd *cobra.Command, args []string) {
 	http.Serve(listener, nil)
 }
 
+func dataMatch(name string, data data.SensorData) (float64, bool) {
+	query := viper.Sub("current_data").GetStringMapString(name)
+	if t, ok := query["id"]; ok {
+		if data.ID != t {
+			return 0, false
+		}
+	}
+	if t, ok := query["channel"]; ok {
+		x, err := strconv.Atoi(t)
+		if err != nil || data.Channel != x {
+			return 0, false
+		}
+	}
+	if t, ok := query["serial"]; ok {
+		if data.Serial != t {
+			return 0, false
+		}
+	}
+	if t, ok := query["type"]; ok {
+		if v, ok := data.Data[t]; ok {
+			return v, true
+		}
+	}
+	return 0, false
+}
+
 func convertToStringMap(name string) []map[string]string {
 	if result, ok := viper.Get(name).([]map[string]string); ok {
 		return result
@@ -182,13 +241,12 @@ func convertToStringMap(name string) []map[string]string {
 }
 
 type templateData struct {
-	Units        map[string]string
-	Temperature  string
-	Pressure     string
-	Humidity     string
-	Wind         string
-	Rain         string
-	TemperatureQ string
+	Units       map[string]string
+	Temperature string
+	Pressure    string
+	Humidity    string
+	Wind        string
+	Rain        string
 }
 
 func serveTemplate(w http.ResponseWriter, r *http.Request, static http.Handler, thedata templateData) {
@@ -245,7 +303,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err, r.FormValue("query"))
 	}
 	//channel := r.FormValue("channel")
 
@@ -286,25 +344,60 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 
 		col := rxp.FindStringSubmatch(datatype)
 
+		unitmap := viper.GetStringMapString("units")
 		for row := range rows {
 			_, off := time.Unix(row.Timestamp, 0).Zone()
 			t := (time.Unix(row.Timestamp, 0).Unix() + int64(off)) * 1000
 			sub := make([]interface{}, 2)
 			sub[0] = t
+			var value float64
 			if len(col) > 1 {
 				switch col[1] {
 				case "min":
-					sub[1] = row.Min
+					value = row.Min
 				case "max":
-					sub[1] = row.Max
+					value = row.Max
 				case "avg":
-					sub[1] = row.Avg
+					value = row.Avg
 				default:
-					sub[1] = row.Avg
+					value = row.Avg
 				}
 			} else {
-				sub[1] = row.Avg
+				value = row.Avg
 			}
+			switch r.FormValue("type") {
+			case "temperature":
+				u := units.NewTemperatureCelsius(value)
+				if v2, err := u.Get(unitmap["Temperature"]); err == nil {
+					sub[1] = v2
+				} else {
+					sub[1] = value
+				}
+			case "pressure":
+				u := units.NewPressureHpa(value)
+				if v2, err := u.Get(unitmap["Pressure"]); err == nil {
+					sub[1] = v2
+				} else {
+					sub[1] = value
+				}
+			case "wind":
+				u := units.NewSpeedMetersPerSecond(value)
+				if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
+					sub[1] = v2
+				} else {
+					sub[1] = value
+				}
+			case "rain":
+				u := units.NewDistanceMillimeters(value)
+				if v2, err := u.Get(unitmap["Rain"]); err == nil {
+					sub[1] = v2
+				} else {
+					sub[1] = value
+				}
+			default:
+				sub[1] = value
+			}
+
 			result.Data[index] = append(result.Data[index], sub)
 
 			sub = make([]interface{}, 3)
@@ -324,7 +417,7 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println(err, r.FormValue("query"))
 	}
 
 	var result struct {
@@ -364,7 +457,11 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 		key := rxp.ReplaceAllString(datatype, "")
 
 		for row := range db.QueryWind(t, key, col, id, 0) {
-			result.Data[index][int(row.Dir)] = row.Value
+			speed := units.NewSpeedMetersPerSecond(row.Value)
+			result.Data[index][int(row.Dir)], err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
+			if err != nil {
+				panic(err)
+			}
 		}
 	}
 
@@ -379,7 +476,7 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 }
 
 func changeHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
-	datatypes := strings.Split(r.FormValue("type"), ",")
+	datatypes := strings.Split(r.FormValue("key"), ",")
 	ids := strings.Split(r.FormValue("id"), ",")
 	channel, err := strconv.Atoi(r.FormValue("channel"))
 	if err != nil {
@@ -392,6 +489,7 @@ func changeHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 		Change []float64
 	}
 
+	unitmap := viper.GetStringMapString("units")
 	index := 0
 	for _, datatype := range datatypes {
 		for _, id := range ids {
@@ -406,7 +504,42 @@ func changeHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 			if err != nil {
 			}
 
-			result.Change = append(result.Change, now-old)
+			value := now - old
+			var delta float64
+
+			switch r.FormValue("type") {
+			case "temperature":
+				u := units.NewTemperatureCelsius(value)
+				if v2, err := u.Get(unitmap["Temperature"]); err == nil {
+					delta = v2
+				} else {
+					delta = value
+				}
+			case "pressure":
+				u := units.NewPressureHpa(value)
+				if v2, err := u.Get(unitmap["Pressure"]); err == nil {
+					delta = v2
+				} else {
+					delta = value
+				}
+			case "wind":
+				u := units.NewSpeedMetersPerSecond(value)
+				if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
+					delta = v2
+				} else {
+					delta = value
+				}
+			case "rain":
+				u := units.NewDistanceMillimeters(value)
+				if v2, err := u.Get(unitmap["Rain"]); err == nil {
+					delta = v2
+				} else {
+					delta = value
+				}
+			default:
+				delta = value
+			}
+			result.Change = append(result.Change, delta)
 
 			index++
 		}

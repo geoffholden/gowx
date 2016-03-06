@@ -35,10 +35,10 @@
 
     <div>
         <div>
-            Rainfall Rate: <span class="reading"><span id="current_rain"></span>{{.Units.RainfallRate}}</span>
+            Rainfall Rate: <span class="reading"><span id="current_rain"></span>{{.Units.Rain}}/h</span>
         </div>
         <div>
-            24h Rainfall: <span class="reading"><span id="rain_total"></span>{{.Units.RainTotal}}</span>
+            24h Rainfall: <span class="reading"><span id="rain_total"></span>{{.Units.Rain}}</span>
         </div>
         <div>
             Wind: <span class="reading"><span id="current_wind"></span>{{.Units.WindSpeed}}</span>
@@ -90,12 +90,12 @@
             enabled: false,
         },
     });
-    makeChart("/data.json?query={{.Pressure}}&time=" + timeframe, pressure, "Pressure", {{.Units.Pressure}}, showRange);
-    makeChart("/data.json?query={{.Temperature}}&time=" + timeframe, temp, "Temperature", "\u00B0{{.Units.Temperature}}", showRange);
-    makeChart("/data.json?query={{.Humidity}}&time=" + timeframe, humidity, "Humidity", "%", showRange);
-    makeChart("/data.json?query={{.Wind}}&time=" + timeframe, 'wind', "Wind Speed", "{{.Units.WindSpeed}}", false);
+    makeChart("/data.json?query={{.Pressure}}&type=pressure&time=" + timeframe, pressure, "Pressure", {{.Units.Pressure}}, showRange);
+    makeChart("/data.json?query={{.Temperature}}&type=temperature&time=" + timeframe, temp, "Temperature", "\u00B0{{.Units.Temperature}}", showRange);
+    makeChart("/data.json?query={{.Humidity}}&type=humidity&time=" + timeframe, humidity, "Humidity", "%", showRange);
+    makeChart("/data.json?query={{.Wind}}&type=wind&time=" + timeframe, 'wind', "Wind Speed", "{{.Units.WindSpeed}}", false);
 
-    $.getJSON("/data.json?query={{.Rain}}&time=" + timeframe, function(data) {
+    $.getJSON("/data.json?query={{.Rain}}&type=rain&time=" + timeframe, function(data) {
         initialrain = data.Data[1][0][1];
         for (i = 0; i < data.Data[1].length; i++) {
             data.Data[1][i][1] -= initialrain;
@@ -114,21 +114,21 @@
             },
             yAxis: [{
                 title: {
-                    text: data.Label[0] + ' ({{.Units.RainfallRate}})',
+                    text: data.Label[0] + ' ({{.Units.Rain}}/h)',
                 },
-                minRange: 1,
+                minRange: 0.1,
                 min: 0,
             },
             {
                 title: {
-                    text: data.Label[1] + ' ({{.Units.RainTotal}})'
+                    text: data.Label[1] + ' ({{.Units.Rain}})'
                 },
                 opposite: true,
-                minRange: 1,
+                minRange: 0.1,
                 min: 0,
             }],
             tooltip: {
-                valueDecimals: 1,
+                valueDecimals: 2,
             },
             legend: {
                 enabled: true,
@@ -138,7 +138,7 @@
                     data: data.Data[0],
                     name: data.Label[0],
                     tooltip: {
-                        valueSuffix: " {{.Units.RainfallRate}}"
+                        valueSuffix: " {{.Units.Rain}}/h"
                     },
                 },
                 {
@@ -147,7 +147,7 @@
                     name: data.Label[1],
                     yAxis: 1,
                     tooltip: {
-                        valueSuffix: " {{.Units.RainTotal}}"
+                        valueSuffix: " {{.Units.Rain}}"
                     },
                 }],
         };
@@ -155,7 +155,7 @@
         var chart = new Highcharts.Chart(options);
 
         setInterval(function() {
-            $.getJSON("/data.json?query={{.Rain}}&time=" + timeframe, function(data) {
+            $.getJSON("/data.json?query={{.Rain}}&type=rain&time=" + timeframe, function(data) {
                 initialrain = data.Data[1][0][1];
                 for (i = 0; i < data.Data[1].length; i++) {
                     data.Data[1][i][1] -= initialrain;
