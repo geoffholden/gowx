@@ -303,7 +303,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err, r.FormValue("query"))
+		fmt.Println(err)
 	}
 	//channel := r.FormValue("channel")
 
@@ -417,7 +417,7 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err, r.FormValue("query"))
+		fmt.Println(err)
 	}
 
 	var result struct {
