@@ -87,6 +87,9 @@ func serialLoop(client *MQTT.Client) {
 }
 
 func parser(cmd *cobra.Command, args []string) {
+	if verbose {
+		jww.SetStdoutThreshold(jww.LevelTrace)
+	}
 	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("parser").SetCleanSession(true)
 
 	client := MQTT.NewClient(opts)

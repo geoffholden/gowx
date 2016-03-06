@@ -57,6 +57,9 @@ func init() {
 }
 
 func server(cmd *cobra.Command, args []string) {
+	if verbose {
+		jww.SetStdoutThreshold(jww.LevelTrace)
+	}
 	var currentData struct {
 		Temperature float64
 		Humidity    float64

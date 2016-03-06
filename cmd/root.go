@@ -13,6 +13,7 @@ import (
 )
 
 var cfgFile string
+var verbose bool
 
 // This represents the base command when called without any subcommands
 var RootCmd = &cobra.Command{
@@ -47,6 +48,7 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is gowx.yaml)")
 	RootCmd.PersistentFlags().String("broker", "tcp://localhost:1883", "MQTT Server")
 	RootCmd.PersistentFlags().String("database", "gowx.db", "Database")
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 
 	dbdrivers := data.DBDrivers()
 	if len(dbdrivers) > 1 {

@@ -46,6 +46,9 @@ type mapKey struct {
 }
 
 func aggregator(cmd *cobra.Command, args []string) {
+	if verbose {
+		jww.SetStdoutThreshold(jww.LevelTrace)
+	}
 	db, err := data.OpenDatabase()
 	if err != nil {
 		jww.FATAL.Println(err)
