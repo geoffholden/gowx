@@ -5,12 +5,12 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"math"
 	"regexp"
 	"time"
 
 	"github.com/spf13/cobra"
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
@@ -46,8 +46,6 @@ type mapKey struct {
 }
 
 func aggregator(cmd *cobra.Command, args []string) {
-	fmt.Println("aggregator called")
-
 	db, err := data.OpenDatabase()
 	if err != nil {
 		panic(err)
@@ -93,9 +91,9 @@ func aggregator(cmd *cobra.Command, args []string) {
 }
 
 func addData(thedata *map[mapKey][]float64, d data.SensorData) {
-	fmt.Printf("Adding data:\n")
+	jww.DEBUG.Printf("Adding data:\n")
 	for k, v := range d.Data {
-		fmt.Printf("\t\t%s -> %f\n", k, v)
+		jww.DEBUG.Printf("\t\t%s -> %f\n", k, v)
 		key := mapKey{
 			ID:      d.ID,
 			Channel: d.Channel,
@@ -125,7 +123,7 @@ func sumData(thedata *map[mapKey][]float64, db *data.Database) {
 		}
 		err := db.InsertRow(timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
 		if err != nil {
-			fmt.Printf("%s\n", err.Error())
+			jww.ERROR.Printf("%s\n", err.Error())
 		}
 	}
 	*thedata = make(map[mapKey][]float64)

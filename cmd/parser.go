@@ -6,7 +6,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"github.com/geoffholden/gowx/data"
 	"github.com/spf13/cobra"
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 	"github.com/tarm/serial"
 
@@ -49,7 +49,7 @@ func loop(reader io.Reader, client *MQTT.Client) {
 		for scanner.Scan() {
 			line := strings.SplitN(scanner.Text(), ":", 2)
 			if nil == sensors.Sensors[line[0]] {
-				fmt.Println(scanner.Text())
+				jww.DEBUG.Println(scanner.Text())
 			} else {
 				d := sensors.Sensors[line[0]].Parse(line[0], line[1])
 				channel <- d
@@ -65,10 +65,9 @@ func loop(reader io.Reader, client *MQTT.Client) {
 		encoder.Encode(data)
 		payload := buf.Bytes()
 		if token := client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
-			fmt.Println("Failed to send message.")
-			panic(token.Error())
+			jww.ERROR.Println("Failed to send message.", token.Error())
 		}
-		fmt.Printf("Publishing %s -> %s\n", topic, buf.Bytes())
+		jww.DEBUG.Printf("Publishing %s -> %s\n", topic, buf.Bytes())
 	}
 }
 

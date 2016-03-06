@@ -5,7 +5,6 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"net"
 	"net/http"
@@ -18,6 +17,7 @@ import (
 	"github.com/geoffholden/gowx/data"
 	"github.com/geoffholden/gowx/units"
 	"github.com/spf13/cobra"
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 )
 
@@ -187,7 +187,7 @@ func server(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 	addr := listener.Addr()
-	fmt.Println("Listening on", addr.String())
+	jww.INFO.Println("Listening on", addr.String())
 
 	http.Serve(listener, nil)
 }
@@ -303,7 +303,8 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err)
+		jww.ERROR.Println(err)
+		return
 	}
 	//channel := r.FormValue("channel")
 
@@ -417,7 +418,8 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 	var queries []map[string]string
 	err := json.Unmarshal([]byte(r.FormValue("query")), &queries)
 	if err != nil {
-		fmt.Println(err)
+		jww.ERROR.Println(err)
+		return
 	}
 
 	var result struct {

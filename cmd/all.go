@@ -3,8 +3,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -24,8 +22,6 @@ to quickly create a Cobra application.`,
 		go parserCmd.Run(parserCmd, args)
 		go aggregatorCmd.Run(aggregatorCmd, args)
 		serverCmd.Run(serverCmd, args)
-		// TODO: Work your own magic here
-		fmt.Println("all called")
 	},
 }
 

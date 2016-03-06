@@ -19,7 +19,6 @@ func init() {
 }
 
 func (d *Oregon) Parse(key string, input string) data.SensorData {
-	//fmt.Println("Sensor ID", data[0:4], "Channel", data[4:5], "Rolling Code", data[5:7], "Flags", data[7:8])
 	var emptyResult data.SensorData
 	channel, err := strconv.ParseUint(input[4:5], 16, 8)
 	if err != nil {

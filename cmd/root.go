@@ -3,12 +3,12 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"strings"
 
 	"github.com/geoffholden/gowx/data"
 	"github.com/spf13/cobra"
+	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 )
 
@@ -32,7 +32,7 @@ store the parsed data in a database, and has a web display interface.`,
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := RootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		jww.ERROR.Println(err)
 		os.Exit(-1)
 	}
 }
@@ -73,6 +73,6 @@ func initConfig() {
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+		jww.DEBUG.Println("Using config file:", viper.ConfigFileUsed())
 	}
 }
