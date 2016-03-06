@@ -230,7 +230,7 @@
         };
         var chart = new Highcharts.Chart(options);
         setInterval(function() {
-            $.getJSON("/wind.json?time=" + timeframe, function(data) {
+            $.getJSON("/wind.json?query={{.Wind}}&time=" + timeframe, function(data) {
                 chart.series[0].setData(data.Wind);
                 chart.series[1].setData(data.Gust);
             });
