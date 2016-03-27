@@ -114,19 +114,6 @@ func server(cmd *cobra.Command, args []string) {
 				rate := units.NewDistanceMillimeters(value)
 				currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["Rain"])
 			}
-
-			// switch data.ID {
-			// case "OS3:F824":
-			// 	currentData.Temperature = data.Data["Temperature"]
-			// 	currentData.Humidity = data.Data["Humidity"]
-			// case "BMP":
-			// 	currentData.Pressure = data.Data["Pressure"]
-			// case "OS3:1984":
-			// 	currentData.Wind = data.Data["AverageWind"]
-			// 	currentData.WindDir = data.Data["WindDir"]
-			// case "OS3:2914":
-			// 	currentData.RainRate = data.Data["RainRate"]
-			// }
 		}); token.Wait() && token.Error() != nil {
 			jww.FATAL.Println(token.Error())
 			panic(token.Error())
@@ -378,50 +365,53 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 			} else {
 				value = row.Avg
 			}
-			switch r.FormValue("type") {
-			case "temperature":
-				u := units.NewTemperatureCelsius(value)
-				if v2, err := u.Get(unitmap["Temperature"]); err == nil {
-					sub[1] = v2
-				} else {
-					sub[1] = value
-				}
-			case "pressure":
-				u := units.NewPressureHpa(value)
-				if v2, err := u.Get(unitmap["Pressure"]); err == nil {
-					sub[1] = v2
-				} else {
-					sub[1] = value
-				}
-			case "wind":
-				u := units.NewSpeedMetersPerSecond(value)
-				if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
-					sub[1] = v2
-				} else {
-					sub[1] = value
-				}
-			case "rain":
-				u := units.NewDistanceMillimeters(value)
-				if v2, err := u.Get(unitmap["Rain"]); err == nil {
-					sub[1] = v2
-				} else {
-					sub[1] = value
-				}
-			default:
-				sub[1] = value
-			}
-
+			sub[1] = convertUnit(unitmap, r.FormValue("type"), value)
 			result.Data[index] = append(result.Data[index], sub)
 
 			sub = make([]interface{}, 3)
 			sub[0] = t
-			sub[1] = row.Min
-			sub[2] = row.Max
+			sub[1] = convertUnit(unitmap, r.FormValue("type"), row.Min)
+			sub[2] = convertUnit(unitmap, r.FormValue("type"), row.Max)
 			result.Errorbars[index] = append(result.Errorbars[index], sub)
 		}
 		index++
 	}
 	json.NewEncoder(w).Encode(result)
+}
+
+func convertUnit(unitmap map[string]string, datatype string, input float64) float64 {
+	switch datatype {
+	case "temperature":
+		u := units.NewTemperatureCelsius(input)
+		if v2, err := u.Get(unitmap["Temperature"]); err == nil {
+			return v2
+		} else {
+			return input
+		}
+	case "pressure":
+		u := units.NewPressureHpa(input)
+		if v2, err := u.Get(unitmap["Pressure"]); err == nil {
+			return v2
+		} else {
+			return input
+		}
+	case "wind":
+		u := units.NewSpeedMetersPerSecond(input)
+		if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
+			return v2
+		} else {
+			return input
+		}
+	case "rain":
+		u := units.NewDistanceMillimeters(input)
+		if v2, err := u.Get(unitmap["Rain"]); err == nil {
+			return v2
+		} else {
+			return input
+		}
+	default:
+		return input
+	}
 }
 
 func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
@@ -515,38 +505,7 @@ func changeHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 			value := now - old
 			var delta float64
 
-			switch r.FormValue("type") {
-			case "temperature":
-				u := units.NewTemperatureCelsius(value)
-				if v2, err := u.Get(unitmap["Temperature"]); err == nil {
-					delta = v2
-				} else {
-					delta = value
-				}
-			case "pressure":
-				u := units.NewPressureHpa(value)
-				if v2, err := u.Get(unitmap["Pressure"]); err == nil {
-					delta = v2
-				} else {
-					delta = value
-				}
-			case "wind":
-				u := units.NewSpeedMetersPerSecond(value)
-				if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
-					delta = v2
-				} else {
-					delta = value
-				}
-			case "rain":
-				u := units.NewDistanceMillimeters(value)
-				if v2, err := u.Get(unitmap["Rain"]); err == nil {
-					delta = v2
-				} else {
-					delta = value
-				}
-			default:
-				delta = value
-			}
+			delta = convertUnit(unitmap, r.FormValue("type"), value)
 			result.Change = append(result.Change, delta)
 
 			index++
