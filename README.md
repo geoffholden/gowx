@@ -15,3 +15,8 @@ Installation
 ------------
 
 `go get github.com/geoffholden/gowx`
+
+Usage
+-----
+
+See [Documentation](docs/gowx.md)
