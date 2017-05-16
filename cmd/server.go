@@ -69,6 +69,8 @@ func server(cmd *cobra.Command, args []string) {
 		RainRate    float64
 	}
 
+	sensordata := make(chan data.SensorData, 1)
+
 	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("web").SetCleanSession(true)
 	opts.OnConnect = func(c *MQTT.Client) {
 		if token := c.Subscribe("/gowx/sample", 0, func(client *MQTT.Client, msg MQTT.Message) {
@@ -80,52 +82,70 @@ func server(cmd *cobra.Command, args []string) {
 				jww.ERROR.Println(err)
 				return
 			}
-			if value, ok := dataMatch("temperature", data); ok {
-				temp := units.NewTemperatureCelsius(value)
-				currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["Temperature"])
-				if err != nil {
-					jww.ERROR.Println(err)
-					return
-				}
-			}
-			if value, ok := dataMatch("humidity", data); ok {
-				currentData.Humidity = value
-			}
-			if value, ok := dataMatch("pressure", data); ok {
-				pres := units.NewPressureHectopascal(value)
-				currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["Pressure"])
-				if err != nil {
-					jww.ERROR.Println(err)
-					return
-				}
-			}
-			if value, ok := dataMatch("wind", data); ok {
-				speed := units.NewSpeedMetersPerSecond(value)
-				currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
-				if err != nil {
-					jww.ERROR.Println(err)
-					return
-				}
-			}
-			if value, ok := dataMatch("winddir", data); ok {
-				currentData.WindDir = value
-			}
-			if value, ok := dataMatch("rain", data); ok {
-				rate := units.NewDistanceMillimeters(value)
-				currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["Rain"])
-			}
+
+			sensordata <- data
 		}); token.Wait() && token.Error() != nil {
 			jww.FATAL.Println(token.Error())
 			panic(token.Error())
 		}
 	}
 
-	client := MQTT.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		jww.FATAL.Println(token.Error())
-		panic(token.Error())
+	opts.OnConnectionLost = func(c *MQTT.Client, e error) {
+		jww.ERROR.Println("MQTT Connection Lost", e)
+		connect(c)
 	}
+
+	opts.AutoReconnect = false
+
+	client := MQTT.NewClient(opts)
+	connect(client)
 	defer client.Disconnect(0)
+
+	go func() {
+		for {
+			select {
+			case data := <-sensordata:
+				var err error
+				if value, ok := dataMatch("temperature", data); ok {
+					temp := units.NewTemperatureCelsius(value)
+					currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["Temperature"])
+					if err != nil {
+						jww.ERROR.Println(err)
+						return
+					}
+				}
+				if value, ok := dataMatch("humidity", data); ok {
+					currentData.Humidity = value
+				}
+				if value, ok := dataMatch("pressure", data); ok {
+					pres := units.NewPressureHectopascal(value)
+					currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["Pressure"])
+					if err != nil {
+						jww.ERROR.Println(err)
+						return
+					}
+				}
+				if value, ok := dataMatch("wind", data); ok {
+					speed := units.NewSpeedMetersPerSecond(value)
+					currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
+					if err != nil {
+						jww.ERROR.Println(err)
+						return
+					}
+				}
+				if value, ok := dataMatch("winddir", data); ok {
+					currentData.WindDir = value
+				}
+				if value, ok := dataMatch("rain", data); ok {
+					rate := units.NewDistanceMillimeters(value)
+					currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["Rain"])
+				}
+			case <-time.After(5 * time.Minute):
+				jww.ERROR.Println("No data in 5 minutes, reconnecting")
+				connect(client)
+			}
+		}
+	}()
 
 	var err error
 	db, err := data.OpenDatabase()
@@ -188,6 +208,24 @@ func server(cmd *cobra.Command, args []string) {
 	jww.INFO.Println("Listening on", addr.String())
 
 	http.Serve(listener, nil)
+}
+
+func connect(client *MQTT.Client) {
+	timeout := 1 * time.Second
+
+	for {
+		if token := client.Connect(); token.Wait() && token.Error() != nil {
+			jww.ERROR.Println(token.Error())
+			jww.ERROR.Printf("Waiting %d seconds before reconnecting...", timeout/time.Second)
+			time.Sleep(timeout)
+			timeout *= 2
+			if timeout > 5*time.Minute {
+				timeout = 5 * time.Minute
+			}
+			continue
+		}
+		break
+	}
 }
 
 func dataMatch(name string, data data.SensorData) (float64, bool) {

@@ -77,11 +77,18 @@ func aggregator(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	client := MQTT.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		jww.FATAL.Println(token.Error())
-		panic(token.Error())
+	opts.OnConnectionLost = func(c *MQTT.Client, e error) {
+		jww.ERROR.Println("MQTT Connection Lost", e)
+		if token := c.Connect(); token.Wait() && token.Error() != nil {
+			jww.FATAL.Println(token.Error())
+			panic(token.Error())
+		}
 	}
+
+	opts.AutoReconnect = false
+
+	client := MQTT.NewClient(opts)
+	connect(client)
 	defer client.Disconnect(0)
 
 	ticker := time.NewTicker(time.Duration(viper.GetInt("interval")) * time.Second)
@@ -93,6 +100,9 @@ func aggregator(cmd *cobra.Command, args []string) {
 			sumData(&thedata, db)
 		case d := <-dataChannel:
 			addData(&thedata, d)
+		case <-time.After(5 * time.Minute):
+			jww.ERROR.Println("No data in 5 minutes, reconnecting")
+			connect(client)
 		}
 	}
 }
