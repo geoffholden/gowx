@@ -1,4 +1,4 @@
-// Copyright © 2016 Geoff Holden <geoff@geoffholden.com>
+// Copyright © 2017 Geoff Holden <geoff@geoffholden.com>
 
 package units
 
@@ -11,6 +11,15 @@ func TestSpeedMetersPerSecond(t *testing.T) {
 	if err := quick.Check(func(x float64) bool {
 		y := NewSpeedMetersPerSecond(x)
 		return floatEquals(x, y.MetersPerSecond())
+	}, nil); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSpeedKilometersPerHour(t *testing.T) {
+	if err := quick.Check(func(x float64) bool {
+		y := NewSpeedKilometersPerHour(x)
+		return floatEquals(x, y.KilometersPerHour())
 	}, nil); err != nil {
 		t.Error(err)
 	}

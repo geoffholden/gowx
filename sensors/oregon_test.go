@@ -1,4 +1,4 @@
-// Copyright © 2016 Geoff Holden <geoff@geoffholden.com>
+// Copyright © 2017 Geoff Holden <geoff@geoffholden.com>
 
 package sensors
 
@@ -30,7 +30,7 @@ func TestParseTHGR122NX(t *testing.T) {
 	}
 }
 
-func TestTruncated(t *testing.T) {
+func TestOregonTruncated(t *testing.T) {
 	var o Oregon
 
 	var empty data.SensorData
@@ -46,7 +46,7 @@ func TestTruncated(t *testing.T) {
 	}
 }
 
-func TestBadChecksum(t *testing.T) {
+func TestOregonBadChecksum(t *testing.T) {
 	var o Oregon
 	var empty data.SensorData
 

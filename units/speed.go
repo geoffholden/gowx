@@ -1,4 +1,4 @@
-// Copyright © 2016 Geoff Holden <geoff@geoffholden.com>
+// Copyright © 2017 Geoff Holden <geoff@geoffholden.com>
 
 package units
 
@@ -13,6 +13,10 @@ type Speed struct {
 
 func NewSpeedMetersPerSecond(value float64) Speed {
 	return Speed{value}
+}
+
+func NewSpeedKilometersPerHour(value float64) Speed {
+	return Speed{value / 3.6}
 }
 
 func (s *Speed) MetersPerSecond() float64 {
