@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/geoffholden/gowx/data"
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
@@ -42,7 +42,7 @@ func init() {
 	viper.BindPFlags(parserCmd.Flags())
 }
 
-func loop(reader io.Reader, client *MQTT.Client) {
+func loop(reader io.Reader, client MQTT.Client) {
 	channel := make(chan data.SensorData)
 	scanner := bufio.NewScanner(reader)
 	go func() {
@@ -71,7 +71,7 @@ func loop(reader io.Reader, client *MQTT.Client) {
 	}
 }
 
-func serialLoop(client *MQTT.Client) {
+func serialLoop(client MQTT.Client) {
 	c := &serial.Config{
 		Name: viper.GetString("port"),
 		Baud: viper.GetInt("baud"),
