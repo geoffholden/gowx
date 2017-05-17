@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/geoffholden/gowx/data"
 	"github.com/geoffholden/gowx/units"
 	"github.com/spf13/cobra"
@@ -72,8 +72,8 @@ func server(cmd *cobra.Command, args []string) {
 	sensordata := make(chan data.SensorData, 1)
 
 	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("web").SetCleanSession(true)
-	opts.OnConnect = func(c *MQTT.Client) {
-		if token := c.Subscribe("/gowx/sample", 0, func(client *MQTT.Client, msg MQTT.Message) {
+	opts.OnConnect = func(c MQTT.Client) {
+		if token := c.Subscribe("/gowx/sample", 0, func(client MQTT.Client, msg MQTT.Message) {
 			r := bytes.NewReader(msg.Payload())
 			decoder := json.NewDecoder(r)
 			var data data.SensorData
@@ -90,7 +90,7 @@ func server(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	opts.OnConnectionLost = func(c *MQTT.Client, e error) {
+	opts.OnConnectionLost = func(c MQTT.Client, e error) {
 		jww.ERROR.Println("MQTT Connection Lost", e)
 		connect(c)
 	}
@@ -210,7 +210,7 @@ func server(cmd *cobra.Command, args []string) {
 	http.Serve(listener, nil)
 }
 
-func connect(client *MQTT.Client) {
+func connect(client MQTT.Client) {
 	timeout := 1 * time.Second
 
 	for {

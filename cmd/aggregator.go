@@ -13,7 +13,7 @@ import (
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
 
-	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	MQTT "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/geoffholden/gowx/data"
 )
@@ -60,8 +60,8 @@ func aggregator(cmd *cobra.Command, args []string) {
 	topic := "/gowx/sample"
 	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("aggregator").SetCleanSession(true)
 
-	opts.OnConnect = func(c *MQTT.Client) {
-		if token := c.Subscribe(topic, 0, func(client *MQTT.Client, msg MQTT.Message) {
+	opts.OnConnect = func(c MQTT.Client) {
+		if token := c.Subscribe(topic, 0, func(client MQTT.Client, msg MQTT.Message) {
 			r := bytes.NewReader(msg.Payload())
 			decoder := json.NewDecoder(r)
 			var data data.SensorData
@@ -77,7 +77,7 @@ func aggregator(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	opts.OnConnectionLost = func(c *MQTT.Client, e error) {
+	opts.OnConnectionLost = func(c MQTT.Client, e error) {
 		jww.ERROR.Println("MQTT Connection Lost", e)
 		if token := c.Connect(); token.Wait() && token.Error() != nil {
 			jww.FATAL.Println(token.Error())
