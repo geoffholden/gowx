@@ -14,7 +14,7 @@ func TestParseVN1TX(t *testing.T) {
 	if res.ID != "VN1:6D27" {
 		t.Error("Error parsing ID")
 	}
-	if res.Data["CurrentWind"] < 3.04 || res.Data["CurrentWind"] > 3.05 {
+	if res.Data["CurrentWind"] < 1.65 || res.Data["CurrentWind"] > 1.66 {
 		t.Error("Error parsing wind speed", res.Data["CurrentWind"])
 	}
 	if res.Data["WindDir"] != 180 {

@@ -57,7 +57,7 @@ func (d *VN1TX) Parse(key string, input string) data.SensorData {
 
 	wspd := float64(((message[6] & 0x01) << 7) | (message[7] << 3) | (message[8] & 0x07))
 	if wspd > 0.0 {
-		wspd *= 0.8278 + 1.00
+		wspd = wspd*0.8278 + 1.00
 	}
 	kmh := units.NewSpeedKilometersPerHour(wspd)
 	result.Data["CurrentWind"] = kmh.MetersPerSecond()
