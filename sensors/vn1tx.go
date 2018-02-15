@@ -51,7 +51,7 @@ func (d *VN1TX) Parse(key string, input string) data.SensorData {
 		TimeStamp: time.Now().UTC(),
 		ID:        key + ":" + input[1:5],
 		Channel:   int(channel),
-		Serial:    input[5:7],
+		Serial:    "00", //input[5:7],
 		Data:      make(map[string]float64),
 	}
 

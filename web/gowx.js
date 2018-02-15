@@ -99,6 +99,9 @@ function makeChart(query, container, name, units, showRange) {
         },
         xAxis: {
             type: 'datetime',
+            events: {
+                setExtremes: syncExtremes,
+            },
         },
         yAxis: {
             title: {
@@ -150,6 +153,67 @@ function makeChart(query, container, name, units, showRange) {
             });
         },300000);
     });
+}
+
+function circularMean(data) {
+    var sums = 0;
+    var sumc = 0;
+    for (var i = 0; i < data.length; i++) {
+        var radians = data[i] * Math.PI / 180.0;
+        sums += Math.sin(radians);
+        sumc += Math.cos(radians);
+    }
+
+    return Math.atan2(sums/data.length, sumc/data.length) * 180.0 / Math.PI;
+}
+
+function generateBarbData(mag, dir, num) {
+    var data = mag.map(function(val, i) { return [val[0], val[1], dir[i][1]]; });
+
+    // Need to average the barbdata
+    var starttime = data[0][0];
+    var endtime = data[data.length - 1][0];
+    var binsize = (endtime - starttime) / num;
+
+    var t = starttime + binsize;
+    var bin_time = [];
+    var bin_speed = [];
+    var bin_direction = [];
+    var barbData = [];
+    for (var i = 0; i < data.length; i++) {
+        bin_time.push(data[i][0]);
+        bin_speed.push(data[i][1]);
+        bin_direction.push(data[i][2]);
+
+        if (i+1 == data.length || data[i+1][0] >= t) {
+            // compute averages
+            var time_avg = bin_time.reduce(function(a, b) { return a + b;}) / bin_time.length;
+            var speed_avg = bin_speed.reduce(function(a, b) { return a + b;}) / bin_speed.length;
+            speed_avg = speed_avg * 1000 / 3600.0;
+            var direction_avg = circularMean(bin_direction);
+            barbData.push([time_avg, speed_avg, direction_avg]);
+            t += binsize;
+            bin_time = [];
+            bin_speed = [];
+            bin_direction = [];
+        }
+    }
+
+    return barbData;
+}
+
+function syncExtremes(e) {
+    var thisChart = this.chart;
+
+    if (e.trigger !== 'syncExtremes') { // Prevent feedback loop
+        Highcharts.each(Highcharts.charts, function (chart) {
+            if (chart !== thisChart && chart.polar != true) {
+                if (chart.xAxis[0].setExtremes) { // It is null while updating
+                    chart.xAxis[0].setExtremes(e.min, e.max, undefined, false, { trigger: 'syncExtremes' });
+                }
+            }
+        });
+    }
 }
 
 $(document).ready(populateCurrentData);

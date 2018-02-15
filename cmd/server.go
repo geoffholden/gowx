@@ -383,6 +383,7 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 		col := rxp.FindStringSubmatch(datatype)
 
 		unitmap := viper.GetStringMapString("units")
+		direction := regexp.MustCompile(`Dir$`)
 		for row := range rows {
 			_, off := time.Unix(row.Timestamp, 0).Zone()
 			t := (time.Unix(row.Timestamp, 0).Unix() + int64(off)) * 1000
@@ -403,13 +404,24 @@ func dataHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 			} else {
 				value = row.Avg
 			}
-			sub[1] = convertUnit(unitmap, r.FormValue("type"), value)
+			switch {
+			case direction.MatchString(key):
+				sub[1] = value
+			default:
+				sub[1] = convertUnit(unitmap, r.FormValue("type"), value)
+			}
 			result.Data[index] = append(result.Data[index], sub)
 
 			sub = make([]interface{}, 3)
 			sub[0] = t
-			sub[1] = convertUnit(unitmap, r.FormValue("type"), row.Min)
-			sub[2] = convertUnit(unitmap, r.FormValue("type"), row.Max)
+			switch {
+			case direction.MatchString(key):
+				sub[1] = row.Min
+				sub[1] = row.Max
+			default:
+				sub[1] = convertUnit(unitmap, r.FormValue("type"), row.Min)
+				sub[2] = convertUnit(unitmap, r.FormValue("type"), row.Max)
+			}
 			result.Errorbars[index] = append(result.Errorbars[index], sub)
 		}
 		index++
