@@ -21,8 +21,8 @@ func (sqlite sqlite_driver) OpenDatabase(db *sql.DB) error {
 		timestamp   integer,
 		id          text,
 		channel     integer,
-		serial      string,
-		key         string,
+		serial      text,
+		key         text,
 		min         real,
 		max         real,
 		avg         real
