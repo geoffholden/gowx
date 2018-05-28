@@ -15,7 +15,7 @@ function populateCurrentData() {
         $('#current_pressure').html(data['Pressure'].toFixed(1));
         $('#current_wind').html(data['Wind'].toFixed(1));
         $('#current_wind_dir').html(degreesToCardinal(data['WindDir']));
-        $('#current_wind_angle').css("transform", "rotate(" + (data['WindDir'] - 90) + "deg)");
+        $('#current_wind_angle').css("transform", "rotate(" + (data['WindDir'] + 90) + "deg)");
         $('#current_rain').html(data['RainRate'].toFixed(2));
     });
     $.getJSON("/change.json?key=Pressure&type=pressure&time=3h", function(data) {
@@ -168,6 +168,24 @@ function circularMean(data) {
 }
 
 function generateBarbData(mag, dir, num) {
+    function reducer(map, entry, index) {
+        map[entry[0]] = index;
+        return map;
+    }
+    var mag_map = mag.reduce(reducer, {});
+    var dir_map = dir.reduce(reducer, {});
+
+    for (var i = mag.length - 1; i >= 0; i--) {
+        if (!(mag[i][0] in dir_map)) {
+            mag.splice(i, 1);
+        }
+    }
+    for (var i = dir.length - 1; i >= 0; i--) {
+        if (!(dir[i][0] in mag_map)) {
+            dir.splice(i, 1);
+        }
+    }
+
     var data = mag.map(function(val, i) { return [val[0], val[1], dir[i][1]]; });
 
     // Need to average the barbdata
