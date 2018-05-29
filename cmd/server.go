@@ -108,7 +108,7 @@ func server(cmd *cobra.Command, args []string) {
 				var err error
 				if value, ok := dataMatch("temperature", data); ok {
 					temp := units.NewTemperatureCelsius(value)
-					currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["Temperature"])
+					currentData.Temperature, err = temp.Get(viper.GetStringMapString("units")["temperature"])
 					if err != nil {
 						jww.ERROR.Println(err)
 						return
@@ -119,7 +119,7 @@ func server(cmd *cobra.Command, args []string) {
 				}
 				if value, ok := dataMatch("pressure", data); ok {
 					pres := units.NewPressureHectopascal(value)
-					currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["Pressure"])
+					currentData.Pressure, err = pres.Get(viper.GetStringMapString("units")["pressure"])
 					if err != nil {
 						jww.ERROR.Println(err)
 						return
@@ -127,7 +127,7 @@ func server(cmd *cobra.Command, args []string) {
 				}
 				if value, ok := dataMatch("wind", data); ok {
 					speed := units.NewSpeedMetersPerSecond(value)
-					currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
+					currentData.Wind, err = speed.Get(viper.GetStringMapString("units")["windspeed"])
 					if err != nil {
 						jww.ERROR.Println(err)
 						return
@@ -138,7 +138,7 @@ func server(cmd *cobra.Command, args []string) {
 				}
 				if value, ok := dataMatch("rain", data); ok {
 					rate := units.NewDistanceMillimeters(value)
-					currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["Rain"])
+					currentData.RainRate, err = rate.Get(viper.GetStringMapString("units")["rain"])
 				}
 			case <-time.After(5 * time.Minute):
 				jww.ERROR.Println("No data in 5 minutes, reconnecting")
@@ -512,7 +512,7 @@ func windHandler(w http.ResponseWriter, r *http.Request, db *data.Database) {
 
 		for row := range db.QueryWind(t, key, col, id, 0) {
 			speed := units.NewSpeedMetersPerSecond(row.Value)
-			result.Data[index][int(row.Dir)], err = speed.Get(viper.GetStringMapString("units")["WindSpeed"])
+			result.Data[index][int(row.Dir)], err = speed.Get(viper.GetStringMapString("units")["windspeed"])
 			if err != nil {
 				jww.ERROR.Println(err)
 				return
