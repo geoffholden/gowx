@@ -1,4 +1,4 @@
-// Copyright © 2016 Geoff Holden <geoff@geoffholden.com>
+// Copyright © 2018 Geoff Holden <geoff@geoffholden.com>
 
 package data
 
