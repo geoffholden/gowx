@@ -5,7 +5,9 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"time"
 
@@ -58,7 +60,12 @@ func aggregator(cmd *cobra.Command, args []string) {
 	dataChannel := make(chan data.SensorData)
 
 	topic := "/gowx/sample"
-	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("aggregator").SetCleanSession(true)
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	clientid := fmt.Sprintf("gowx-aggregator-%s-%d", hostname, os.Getpid())
+	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID(clientid).SetCleanSession(true)
 
 	opts.OnConnect = func(c MQTT.Client) {
 		if token := c.Subscribe(topic, 0, func(client MQTT.Client, msg MQTT.Message) {

@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -90,7 +91,12 @@ func parser(cmd *cobra.Command, args []string) {
 	if verbose {
 		jww.SetStdoutThreshold(jww.LevelTrace)
 	}
-	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("parser").SetCleanSession(true)
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	clientid := fmt.Sprintf("gowx-parser-%s-%d", hostname, os.Getpid())
+	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID(clientid).SetCleanSession(true)
 
 	client := MQTT.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {

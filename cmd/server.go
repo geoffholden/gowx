@@ -5,9 +5,11 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -71,7 +73,13 @@ func server(cmd *cobra.Command, args []string) {
 
 	sensordata := make(chan data.SensorData, 1)
 
-	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID("web").SetCleanSession(true)
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
+	clientid := fmt.Sprintf("gowx-server-%s-%d", hostname, os.Getpid())
+
+	opts := MQTT.NewClientOptions().AddBroker(viper.GetString("broker")).SetClientID(clientid).SetCleanSession(true)
 	opts.OnConnect = func(c MQTT.Client) {
 		if token := c.Subscribe("/gowx/sample", 0, func(client MQTT.Client, msg MQTT.Message) {
 			r := bytes.NewReader(msg.Payload())
@@ -147,7 +155,6 @@ func server(cmd *cobra.Command, args []string) {
 		}
 	}()
 
-	var err error
 	db, err := data.OpenDatabase()
 	if err != nil {
 		jww.FATAL.Println(err)
