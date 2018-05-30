@@ -18,7 +18,7 @@
 <div class="current">
     <div>
         <div>
-            Temperature: <span class="reading"><span id="current_temp"></span>&deg;{{.Units.Temperature}}</span>
+            Temperature: <span class="reading"><span id="current_temp"></span>&deg;{{.Units.temperature}}</span>
         </div>
 
         <div>
@@ -26,7 +26,7 @@
         </div>
 
         <div>
-            Pressure: <span class="reading"><span id="current_pressure"></span>{{.Units.Pressure}}</span>
+            Pressure: <span class="reading"><span id="current_pressure"></span>{{.Units.pressure}}</span>
         </div>
 
         <div>
@@ -36,13 +36,13 @@
 
     <div>
         <div>
-            Rainfall Rate: <span class="reading"><span id="current_rain"></span>{{.Units.Rain}}/h</span>
+            Rainfall Rate: <span class="reading"><span id="current_rain"></span>{{.Units.rain}}/h</span>
         </div>
         <div>
-            24h Rainfall: <span class="reading"><span id="rain_total"></span>{{.Units.Rain}}</span>
+            24h Rainfall: <span class="reading"><span id="rain_total"></span>{{.Units.rain}}</span>
         </div>
         <div>
-            Wind: <span class="reading"><span id="current_wind"></span>{{.Units.WindSpeed}}</span>
+            Wind: <span class="reading"><span id="current_wind"></span>{{.Units.windspeed}}</span>
         </div>
 
         <div>
@@ -91,8 +91,8 @@
             enabled: false,
         },
     });
-    makeChart("/data.json?query={{.Pressure}}&type=pressure&time=" + timeframe, pressure, "Pressure", {{.Units.Pressure}}, showRange);
-    makeChart("/data.json?query={{.Temperature}}&type=temperature&time=" + timeframe, temp, "Temperature", "\u00B0{{.Units.Temperature}}", showRange);
+    makeChart("/data.json?query={{.Pressure}}&type=pressure&time=" + timeframe, pressure, "Pressure", {{.Units.pressure}}, showRange);
+    makeChart("/data.json?query={{.Temperature}}&type=temperature&time=" + timeframe, temp, "Temperature", "\u00B0{{.Units.temperature}}", showRange);
     makeChart("/data.json?query={{.Humidity}}&type=humidity&time=" + timeframe, humidity, "Humidity", "%", showRange);
 
     $.getJSON("/data.json?query={{.Wind}}&type=wind&time=" + timeframe, function(data) {
@@ -118,14 +118,14 @@
             },
             yAxis: {
                 title: {
-                    text: name + " ({{.Units.WindSpeed}})",
+                    text: name + " ({{.Units.windspeed}})",
                 },
                 minPadding: 0,
                 maxPadding: 0,
             },
             tooltip: {
                 valueDecimals: 1,
-                valueSuffix: " {{.Units.WindSpeed}}",
+                valueSuffix: " {{.Units.windspeed}}",
             },
             series: [],
         };
@@ -192,14 +192,14 @@
             },
             yAxis: [{
                 title: {
-                    text: data.Label[0] + ' ({{.Units.Rain}}/h)',
+                    text: data.Label[0] + ' ({{.Units.rain}}/h)',
                 },
                 minRange: 0.1,
                 min: 0,
             },
             {
                 title: {
-                    text: data.Label[1] + ' ({{.Units.Rain}})'
+                    text: data.Label[1] + ' ({{.Units.rain}})'
                 },
                 opposite: true,
                 minRange: 0.1,
@@ -216,7 +216,7 @@
                     data: data.Data[0],
                     name: data.Label[0],
                     tooltip: {
-                        valueSuffix: " {{.Units.Rain}}/h"
+                        valueSuffix: " {{.Units.rain}}/h"
                     },
                 },
                 {
@@ -225,7 +225,7 @@
                     name: data.Label[1],
                     yAxis: 1,
                     tooltip: {
-                        valueSuffix: " {{.Units.Rain}}"
+                        valueSuffix: " {{.Units.rain}}"
                     },
                 }],
         };
@@ -303,7 +303,7 @@
             ],
             tooltip: {
                 valueDecimals: 1,
-                valueSuffix: " {{.Units.WindSpeed}}",
+                valueSuffix: " {{.Units.windspeed}}",
             },
         };
         var chart = new Highcharts.Chart(options);
