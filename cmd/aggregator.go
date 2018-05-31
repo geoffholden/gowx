@@ -20,6 +20,14 @@ import (
 	"github.com/geoffholden/gowx/data"
 )
 
+type aggdata struct {
+	Timestamp int64
+	Key       mapKey
+	Min       float64
+	Max       float64
+	Avg       float64
+}
+
 // aggregatorCmd represents the aggregator command
 var aggregatorCmd = &cobra.Command{
 	Use:   "aggregator",
@@ -104,7 +112,8 @@ func aggregator(cmd *cobra.Command, args []string) {
 	for {
 		select {
 		case <-ticker.C:
-			sumData(&thedata, db)
+			res := sumData(&thedata, db)
+			publishData(res, db, client)
 		case d := <-dataChannel:
 			addData(&thedata, d)
 		case <-time.After(5 * time.Minute):
@@ -115,7 +124,9 @@ func aggregator(cmd *cobra.Command, args []string) {
 }
 
 func addData(thedata *map[mapKey][]float64, d data.SensorData) {
-	jww.DEBUG.Printf("Adding data:\n")
+	if len(d.Data) > 0 {
+		jww.DEBUG.Printf("Adding data:\n")
+	}
 	for k, v := range d.Data {
 		jww.DEBUG.Printf("\t\t%s -> %f\n", k, v)
 		key := mapKey{
@@ -128,10 +139,13 @@ func addData(thedata *map[mapKey][]float64, d data.SensorData) {
 	}
 }
 
-func sumData(thedata *map[mapKey][]float64, db *data.Database) {
+func sumData(thedata *map[mapKey][]float64, db *data.Database) []aggdata {
 	direction := regexp.MustCompile(`Dir$`)
 
 	timestamp := time.Now().UTC().Unix()
+
+	result := make([]aggdata, len(*thedata))
+	index := 0
 
 	for key, slice := range *thedata {
 		var min, max, avg float64
@@ -145,12 +159,36 @@ func sumData(thedata *map[mapKey][]float64, db *data.Database) {
 			max = maximum(slice)
 			avg = mean(slice)
 		}
-		err := db.InsertRow(timestamp, key.ID, key.Channel, key.Serial, key.Key, min, max, avg)
+
+		result[index].Timestamp = timestamp
+		result[index].Key = key
+		result[index].Min = min
+		result[index].Max = max
+		result[index].Avg = avg
+		index++
+	}
+	*thedata = make(map[mapKey][]float64)
+	return result
+}
+
+func publishData(data []aggdata, db *data.Database, client MQTT.Client) {
+	for _, d := range data {
+		// publish the data to the database
+		err := db.InsertRow(d.Timestamp, d.Key.ID, d.Key.Channel, d.Key.Serial, d.Key.Key, d.Min, d.Max, d.Avg)
 		if err != nil {
 			jww.ERROR.Printf("%s\n", err.Error())
 		}
+
+		// publish the data to the broker
+		topic := "/gowx/sample/aggregated"
+		buf := new(bytes.Buffer)
+		encoder := json.NewEncoder(buf)
+		encoder.Encode(d)
+		payload := buf.Bytes()
+		if token := client.Publish(topic, 0, false, payload); token.Wait() && token.Error() != nil {
+			jww.ERROR.Println("Failed to send message.", token.Error())
+		}
 	}
-	*thedata = make(map[mapKey][]float64)
 }
 
 func minimum(d []float64) float64 {
