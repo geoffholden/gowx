@@ -61,6 +61,15 @@ func TestDistanceFeet(t *testing.T) {
 	}
 }
 
+func TestDistanceNauticalMiles(t *testing.T) {
+	if err := quick.Check(func(x float64) bool {
+		y := NewDistanceNauticalMiles(x)
+		return floatEquals(x, y.NauticalMiles())
+	}, nil); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestDistanceGet(t *testing.T) {
 	dist := NewDistanceMeters(1)
 
@@ -119,6 +128,15 @@ func TestDistanceGet(t *testing.T) {
 	}
 	if !floatEquals(value, 5280) {
 		t.Fatal("Value should be 5280")
+	}
+
+	dist = NewDistanceNauticalMiles(1)
+	value, err = dist.Get("m")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !floatEquals(value, 1852) {
+		t.Fatal("Value should be 1852")
 	}
 
 	value, err = dist.Get("C")

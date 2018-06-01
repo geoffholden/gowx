@@ -35,6 +35,10 @@ func NewDistanceFeet(value float64) Distance {
 	return Distance{value * 0.3048}
 }
 
+func NewDistanceNauticalMiles(value float64) Distance {
+	return Distance{value * 1852.0}
+}
+
 func (d *Distance) Meters() float64 {
 	return d.meters
 }
@@ -63,6 +67,10 @@ func (d *Distance) Feet() float64 {
 	return d.meters / 0.3048
 }
 
+func (d *Distance) NauticalMiles() float64 {
+	return d.meters / 1852.0
+}
+
 func (d *Distance) Get(unit string) (float64, error) {
 	switch strings.ToLower(unit) {
 	case "m":
@@ -79,6 +87,8 @@ func (d *Distance) Get(unit string) (float64, error) {
 		return d.Inches(), nil
 	case "ft", "feet":
 		return d.Feet(), nil
+	case "nm":
+		return d.NauticalMiles(), nil
 	}
 	return 0, errors.New("Unknown unit")
 }
