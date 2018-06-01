@@ -102,7 +102,8 @@ func wunderground(cmd *cobra.Command, args []string) {
 			// timer expired
 			if len(params) > 0 {
 				sendData(params)
-				params = make(map[string]string)
+				// Don't wipe the old data.
+				// params = make(map[string]string)
 			}
 		case d := <-dataChannel:
 			// incoming data
