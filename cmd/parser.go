@@ -10,13 +10,15 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 	"github.com/geoffholden/gowx/data"
 	"github.com/spf13/cobra"
 	jww "github.com/spf13/jwalterweatherman"
 	"github.com/spf13/viper"
-	"github.com/tarm/serial"
+
+	"go.bug.st/serial"
 
 	"github.com/geoffholden/gowx/sensors"
 )
@@ -73,17 +75,21 @@ func loop(reader io.Reader, client MQTT.Client) {
 }
 
 func serialLoop(client MQTT.Client) {
-	c := &serial.Config{
-		Name: viper.GetString("port"),
-		Baud: viper.GetInt("baud"),
+	m := &serial.Mode{
+		BaudRate: viper.GetInt("baud"),
 	}
-	s, err := serial.OpenPort(c)
+	s, err := serial.Open(viper.GetString("port"), m)
 	if err != nil {
 		jww.FATAL.Println(err)
 		panic(err)
 	}
 	defer s.Close()
-	s.Flush()
+
+	s.SetDTR(true)
+	s.SetRTS(true)
+	time.Sleep(1 * time.Second)
+	s.SetDTR(false)
+	s.SetRTS(false)
 	loop(s, client)
 }
 
