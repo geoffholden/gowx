@@ -440,28 +440,28 @@ func convertUnit(unitmap map[string]string, datatype string, input float64) floa
 	switch datatype {
 	case "temperature":
 		u := units.NewTemperatureCelsius(input)
-		if v2, err := u.Get(unitmap["Temperature"]); err == nil {
+		if v2, err := u.Get(unitmap["temperature"]); err == nil {
 			return v2
 		} else {
 			return input
 		}
 	case "pressure":
 		u := units.NewPressureHpa(input)
-		if v2, err := u.Get(unitmap["Pressure"]); err == nil {
+		if v2, err := u.Get(unitmap["pressure"]); err == nil {
 			return v2
 		} else {
 			return input
 		}
 	case "wind":
 		u := units.NewSpeedMetersPerSecond(input)
-		if v2, err := u.Get(unitmap["WindSpeed"]); err == nil {
+		if v2, err := u.Get(unitmap["windspeed"]); err == nil {
 			return v2
 		} else {
 			return input
 		}
 	case "rain":
 		u := units.NewDistanceMillimeters(input)
-		if v2, err := u.Get(unitmap["Rain"]); err == nil {
+		if v2, err := u.Get(unitmap["rain"]); err == nil {
 			return v2
 		} else {
 			return input
