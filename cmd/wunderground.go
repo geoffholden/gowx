@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"os"
@@ -100,7 +101,7 @@ func wunderground(cmd *cobra.Command, args []string) {
 		select {
 		case <-timer.C:
 			// timer expired
-			if len(params) > 0 {
+			if len(params) > 1 {
 				sendData(params)
 				// Don't wipe the old data.
 				// params = make(map[string]string)
@@ -122,10 +123,10 @@ func sendData(params map[string]string) {
 	for key, value := range params {
 		v.Add(key, value)
 	}
-	v.Add("dateutc", "now")
 	v.Add("action", "updateraw")
 	v.Add("ID", viper.GetString("wu_id"))
 	v.Add("PASSWORD", viper.GetString("wu_key"))
+	jww.INFO.Println(v)
 	res, err := http.Get("https://weatherstation.wunderground.com/weatherstation/updateweatherstation.php?" + v.Encode())
 	if err != nil {
 		jww.ERROR.Println(err)
@@ -149,11 +150,19 @@ func wuAddData(d aggdata, params *map[string]string, db *data.Database) {
 	for elem, _ := range viper.GetStringMap("wunderground") {
 		query := config.GetStringMapString(elem)
 
-		key := rxp.ReplaceAllString(d.Key.Key, "") // drop any modifiers
-
+		value := d.Avg
 		if x, ok := query["type"]; ok {
-			if key != x {
+			if d.Key.Key != rxp.ReplaceAllString(x, "") {
 				continue
+			}
+			col := rxp.FindStringSubmatch(x)
+			if len(col) > 1 {
+				switch col[1] {
+				case "min":
+					value = d.Min
+				case "max":
+					value = d.Max
+				}
 			}
 		}
 
@@ -174,23 +183,15 @@ func wuAddData(d aggdata, params *map[string]string, db *data.Database) {
 			}
 		}
 
-		// We have a match!
-		col := rxp.FindStringSubmatch(d.Key.Key)
-		value := d.Avg
-		if len(col) > 1 {
-			switch col[1] {
-			case "min":
-				value = d.Min
-			case "max":
-				value = d.Max
-			}
-		}
-
 		// Do any unit conversion here, also special case for rain totals
 		switch elem {
-		case "windspeedmph", "windgustmph", "windspdmph_avg2m", "windgustmph_10m":
+		case "windspeedmph", "windgustmph":
 			u := units.NewSpeedMetersPerSecond(value)
 			value = u.MilesPerHour()
+		case "winddir", "windgustdir":
+			value = math.Round(math.Mod(value+360.0, 360.0))
+			(*params)[elem] = strconv.FormatFloat(value, 'f', 0, 64)
+			continue
 		case "dewptf", "tempf", "soiltempf":
 			u := units.NewTemperatureCelsius(value)
 			value = u.Fahrenheit()
@@ -222,8 +223,10 @@ func wuAddData(d aggdata, params *map[string]string, db *data.Database) {
 			value = u.NauticalMiles()
 		}
 
-		(*params)[elem] = strconv.FormatFloat(value, 'f', -1, 64)
+		(*params)[elem] = strconv.FormatFloat(value, 'f', 2, 64)
 	}
+
+	(*params)["dateutc"] = time.Unix(d.Timestamp, 0).UTC().Format("2006-01-02 15:04:05")
 }
 
 func bod(t time.Time) time.Time {
