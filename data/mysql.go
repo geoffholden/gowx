@@ -16,6 +16,7 @@ func init() {
 }
 
 func (mysql mysql_driver) OpenDatabase(db *sql.DB) error {
+	db.SetMaxIdleConns(0)
 	if _, err := db.Exec(`
 	CREATE TABLE IF NOT EXISTS samples (
 		timestamp   timestamp,
@@ -151,7 +152,7 @@ func (mysql mysql_driver) QueryRows(db *sql.DB, start int64, key string, id stri
 
 func (mysql mysql_driver) QueryRowsInterval(db *sql.DB, start int64, key string, id string, interval int64) (*sql.Rows, error) {
 	stmt := `SELECT
-			CAST(UNIX_TIMESTAMP(timestamp)/? as INTEGER) * ? as ts,
+			CAST(UNIX_TIMESTAMP(timestamp)/? as UNSIGNED) * ? as ts,
 			MIN(min),
 			MAX(max),
 			AVG(avg)
